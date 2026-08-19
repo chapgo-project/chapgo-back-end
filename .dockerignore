@@ -1,0 +1,7 @@
+.git
+.DS_Store
+chapgo_api/.env
+chapgo_api/node_modules
+chapgo_api/dist
+build
+node_modules
