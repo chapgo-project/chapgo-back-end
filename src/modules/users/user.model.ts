@@ -11,14 +11,16 @@ const UserSchema = new Schema(
   {
     role: { type: String, enum: ROLES, required: true, default: 'owner' },
 
-    firstName: { type: String, required: true, trim: true, maxlength: 50 },
-    lastName: { type: String, required: true, trim: true, maxlength: 50 },
+    // Empty until SMS profile completion (O19). Email/Google always fill them.
+    firstName: { type: String, required: false, trim: true, maxlength: 50, default: '' },
+    lastName: { type: String, required: false, trim: true, maxlength: 50, default: '' },
 
     // Optional: an SMS signup has no email, an email signup no phone.
     email: { type: String, lowercase: true, trim: true, default: null },
     phone: { type: String, trim: true, default: null },
 
     passwordHash: { type: String, default: null },
+    googleId: { type: String, default: null },
 
     emailVerifiedAt: { type: Date, default: null },
     phoneVerifiedAt: { type: Date, default: null },
@@ -66,6 +68,10 @@ UserSchema.index(
 UserSchema.index(
   { phone: 1 },
   { unique: true, partialFilterExpression: { phone: { $type: 'string' } } },
+);
+UserSchema.index(
+  { googleId: 1 },
+  { unique: true, partialFilterExpression: { googleId: { $type: 'string' } } },
 );
 UserSchema.index({ garageId: 1 });
 

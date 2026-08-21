@@ -15,7 +15,7 @@ Serves two clients from **one shared dataset**: the Flutter driver app
 | Project skeleton, TypeScript, config, error envelope | **Written** |
 | 18 collection models with indexes | **Written** |
 | Authorization resolver + 3-layer middleware | **Written** |
-| Auth module — 13 endpoints | **Written** |
+| Auth module — 14 endpoints (email, SMS/Twilio, Google) | **Written** |
 | Users — 6 endpoints | **Written** |
 | Vehicles, mileage, health — 12 endpoints | **Written** |
 | Maintenance — 11 endpoints, transactional, versioned | **Written** |

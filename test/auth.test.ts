@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
 import { makeOwner, bearer } from './factories.js';
 import { UserModel } from '../src/modules/users/user.model.js';
 import { OtpChallengeModel } from '../src/modules/auth/session.model.js';
 import { hashToken } from '../src/core/tokens.js';
+import { messenger } from '../src/core/messaging.js';
 
 const app = createApp();
 const api = () => request(app);
@@ -104,6 +105,28 @@ describe('rule 9 — recovery reveals nothing', () => {
     expect(known.status).toBe(200);
     expect(unknown.status).toBe(200);
     expect(known.body).toEqual(unknown.body);
+  });
+
+  it('applies a new password from the e-mail token and signs in with it', async () => {
+    await makeOwner({ email: 'reset@example.ci' });
+    const spy = vi.spyOn(messenger, 'sendEmail').mockResolvedValue();
+
+    await api().post('/api/v1/auth/forgot-password').send({ email: 'reset@example.ci' });
+    const body = spy.mock.calls[0]?.[2] as string;
+    const token = body.match(/token=([^&\s]+)/)?.[1];
+    expect(token).toBeTruthy();
+    spy.mockRestore();
+
+    const reset = await api()
+      .post('/api/v1/auth/reset-password')
+      .send({ token, password: 'nouveau123' });
+    expect(reset.status).toBe(200);
+
+    const login = await api()
+      .post('/api/v1/auth/login')
+      .send({ email: 'reset@example.ci', password: 'nouveau123' });
+    expect(login.status).toBe(200);
+    expect(login.body.data.accessToken).toBeTruthy();
   });
 });
 

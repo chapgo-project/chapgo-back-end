@@ -49,6 +49,8 @@ export const VerifyEmailBody = z.object({ token: z.string().min(10) });
 export const ResendVerificationBody = z.object({
   /** Present when the user is correcting a typo in their address. */
   email: email.optional(),
+  /** Unauthenticated resend after signup: the address currently on the account. */
+  previousEmail: email.optional(),
 });
 
 export const PhoneRequestBody = z.object({ phone });
@@ -56,6 +58,10 @@ export const PhoneRequestBody = z.object({ phone });
 export const PhoneVerifyBody = z.object({
   phone,
   code: z.string().regex(/^\d{6}$/, 'Le code doit comporter 6 chiffres.'),
+});
+
+export const GoogleBody = z.object({
+  idToken: z.string().min(20, 'Jeton Google manquant.'),
 });
 
 export const VerifyOtpBody = z.object({

@@ -6,7 +6,8 @@ import { hashPassword, verifyPassword } from '../../core/password.js';
 import {
   generateOtpCode, generateRefreshToken, hashToken, issueAccessToken, type Role,
 } from '../../core/tokens.js';
-import { generateLinkToken, messenger } from '../../core/messaging.js';
+import { generateLinkToken, messenger, appUrl } from '../../core/messaging.js';
+import { verifyGoogleIdToken } from '../../core/google.js';
 import { UserModel } from '../users/user.model.js';
 import { OtpChallengeModel, RefreshTokenModel } from './session.model.js';
 import type { LoginInput, RegisterInput } from './auth.schema.js';
@@ -108,7 +109,7 @@ export async function sendEmailVerification(userId: string, email: string): Prom
   await messenger.sendEmail(
     email,
     'Confirmez votre adresse ChapGo',
-    `Confirmez votre adresse : https://app.chapgo.ci/auth/verify-email?token=${token}`,
+    `Confirmez votre adresse : ${appUrl(`/auth/verify-email?token=${token}`)}`,
   );
 }
 
@@ -264,7 +265,7 @@ export async function forgotPassword(email: string): Promise<void> {
   await messenger.sendEmail(
     email,
     'Réinitialisez votre mot de passe ChapGo',
-    `Choisissez un nouveau mot de passe : https://app.chapgo.ci/auth/reset?token=${token}`,
+    `Choisissez un nouveau mot de passe : ${appUrl(`/auth/reset?token=${token}`)}`,
   );
 }
 
@@ -428,3 +429,45 @@ export async function verifyPhoneCode(
 
   return { session: await issueSession(user), user, isNewAccount };
 }
+
+/* ────────────────────────── Google OAuth ─────────────────────────── */
+
+export async function loginWithGoogle(
+  idToken: string,
+): Promise<{ session: SessionPair; user: unknown; isNewAccount: boolean }> {
+  const profile = await verifyGoogleIdToken(idToken);
+
+  const byGoogle = await UserModel.findOne({ googleId: profile.googleId, deletedAt: null });
+  if (byGoogle) {
+    return { session: await issueSession(byGoogle), user: byGoogle, isNewAccount: false };
+  }
+
+  const byEmail = await UserModel.findOne({ email: profile.email, deletedAt: null });
+  if (byEmail) {
+    if (byEmail.googleId && byEmail.googleId !== profile.googleId) {
+      throw err.conflict(
+        ErrorCode.EMAIL_ALREADY_EXISTS,
+        'Cette adresse e-mail est déjà liée à un autre compte.',
+        'email',
+      );
+    }
+    byEmail.googleId = profile.googleId;
+    byEmail.emailVerifiedAt = byEmail.emailVerifiedAt ?? new Date();
+    if (!byEmail.firstName) byEmail.firstName = profile.firstName;
+    if (!byEmail.lastName) byEmail.lastName = profile.lastName;
+    await byEmail.save();
+    return { session: await issueSession(byEmail), user: byEmail, isNewAccount: false };
+  }
+
+  const user = await UserModel.create({
+    role: 'owner',
+    firstName: profile.firstName,
+    lastName: profile.lastName,
+    email: profile.email,
+    googleId: profile.googleId,
+    emailVerifiedAt: new Date(),
+  });
+
+  return { session: await issueSession(user), user, isNewAccount: true };
+}
+

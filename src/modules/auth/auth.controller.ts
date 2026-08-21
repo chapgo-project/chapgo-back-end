@@ -1,6 +1,5 @@
 import type { Request, Response } from 'express';
 import { handler, ok } from '../../core/http.js';
-import { actorOf } from '../../core/authMiddleware.js';
 import { UserModel } from '../users/user.model.js';
 import { toUserDto } from '../users/user.dto.js';
 import * as svc from './auth.service.js';
@@ -42,18 +41,29 @@ export const verifyEmail = handler(async (req: Request, res: Response) => {
 });
 
 export const resendVerification = handler(async (req: Request, res: Response) => {
-  const actor = actorOf(req);
-  const user = await UserModel.findById(actor.userId);
+  const actor = (req as { actor?: { userId: string } }).actor;
+  const requested = req.body.email as string | undefined;
+  const previous = req.body.previousEmail as string | undefined;
+
+  let user = actor?.userId
+    ? await (UserModel as any).findById(actor.userId)
+    : null;
+
+  if (!user && previous) {
+    user = await (UserModel as any).findOne({ email: previous, deletedAt: null });
+  }
+  if (!user && requested) {
+    user = await (UserModel as any).findOne({ email: requested, deletedAt: null });
+  }
+
+  // Always 200 — this endpoint must not confirm whether an address exists.
   if (!user) return ok(res, { sent: true });
 
-  // An optional email in the body also CHANGES the pending address — this is
-  // what backs "Modifier l'adresse e-mail" on screen O16, without a second
-  // endpoint.
-  const target = (req.body.email as string | undefined) ?? user.email;
+  const target = requested ?? user.email;
   if (!target) return ok(res, { sent: true });
 
-  if (req.body.email && req.body.email !== user.email) {
-    user.email = req.body.email;
+  if (requested && requested !== user.email) {
+    user.email = requested;
     user.emailVerifiedAt = null;
     await user.save();
   }
@@ -82,4 +92,13 @@ export const verifyPhoneCode = handler(async (req: Request, res: Response) => {
 export const resendPhoneCode = handler(async (req: Request, res: Response) => {
   const result = await svc.requestPhoneCode(req.body.phone);
   return ok(res, result);
+});
+
+export const google = handler(async (req: Request, res: Response) => {
+  const { session, user, isNewAccount } = await svc.loginWithGoogle(req.body.idToken);
+  return ok(res, {
+    ...session,
+    isNewAccount,
+    user: toUserDto(user as Record<string, any>),
+  });
 });

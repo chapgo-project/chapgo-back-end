@@ -27,13 +27,20 @@ const EnvSchema = z.object({
   STORAGE_SECRET_ACCESS_KEY: z.string().default(''),
   SIGNED_URL_TTL_MIN: z.coerce.number().int().positive().default(15),
 
-  SMS_PROVIDER: z.enum(['console', 'http']).default('console'),
+  SMS_PROVIDER: z.enum(['console', 'http', 'twilio']).default('console'),
   SMS_API_KEY: z.string().default(''),
   SMS_SENDER_ID: z.string().default('ChapGo'),
+  TWILIO_ACCOUNT_SID: z.string().default(''),
+  TWILIO_AUTH_TOKEN: z.string().default(''),
+  TWILIO_FROM: z.string().default(''),
 
-  EMAIL_PROVIDER: z.enum(['console', 'http']).default('console'),
+  EMAIL_PROVIDER: z.enum(['console', 'http', 'resend']).default('console'),
   EMAIL_API_KEY: z.string().default(''),
   EMAIL_FROM: z.string().default('no-reply@chapgo.ci'),
+  APP_PUBLIC_URL: z.string().default('https://app.chapgo.ci'),
+
+  /** Comma-separated OAuth client IDs (iOS, Android, Web). */
+  GOOGLE_CLIENT_IDS: z.string().default(''),
 
   // Business thresholds. In config because they will be tuned after the
   // pilots — a literal buried in a service is where they go to die.

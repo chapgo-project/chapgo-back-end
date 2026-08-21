@@ -1,12 +1,12 @@
 import { Router } from 'express';
 import { validateBody } from '../../core/validate.js';
-import { requireAuth } from '../../core/authMiddleware.js';
+import { optionalAuth } from '../../core/authMiddleware.js';
 import { authLimiter, otpRequestLimiter, otpVerifyLimiter } from '../../core/rateLimit.js';
 import * as ctrl from './auth.controller.js';
 import * as S from './auth.schema.js';
 
 /**
- * 13 endpoints. Naming departs from the original proposal on purpose:
+ * 14 endpoints. Naming departs from the original proposal on purpose:
  *
  *   /auth/login/phone/request-code  →  /auth/phone/request-code
  *
@@ -36,7 +36,7 @@ authRouter.post(
 authRouter.post('/verify-email', validateBody(S.VerifyEmailBody), ctrl.verifyEmail);
 authRouter.post(
   '/resend-verification',
-  requireAuth,
+  optionalAuth,
   validateBody(S.ResendVerificationBody),
   ctrl.resendVerification,
 );
@@ -59,3 +59,5 @@ authRouter.post(
   validateBody(S.PhoneRequestBody),
   ctrl.resendPhoneCode,
 );
+
+authRouter.post('/google', authLimiter, validateBody(S.GoogleBody), ctrl.google);

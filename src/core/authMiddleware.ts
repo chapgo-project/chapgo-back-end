@@ -14,6 +14,22 @@ export interface AuthedRequest extends Request {
   actor: Actor;
 }
 
+/** Attaches an actor when a Bearer token is present; never rejects. */
+export function optionalAuth(req: Request, _res: Response, next: NextFunction) {
+  const header = req.headers.authorization;
+  if (!header?.startsWith('Bearer ')) return next();
+
+  const claims = verifyAccessToken(header.slice(7));
+  if (!claims) return next();
+
+  (req as AuthedRequest).actor = {
+    userId: claims.sub,
+    role: claims.role,
+    ...(claims.garageId ? { garageId: claims.garageId } : {}),
+  };
+  next();
+}
+
 /** Layer 1 — a valid access token on a live account. */
 export function requireAuth(req: Request, _res: Response, next: NextFunction) {
   const header = req.headers.authorization;
