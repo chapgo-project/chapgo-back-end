@@ -1,5 +1,7 @@
 import type { Request, Response } from 'express';
+import { isProd } from '../../core/config.js';
 import { handler, ok } from '../../core/http.js';
+import { logger } from '../../core/logger.js';
 import { UserModel } from '../users/user.model.js';
 import { toUserDto } from '../users/user.dto.js';
 import * as svc from './auth.service.js';
@@ -57,10 +59,16 @@ export const resendVerification = handler(async (req: Request, res: Response) =>
   }
 
   // Always 200 — this endpoint must not confirm whether an address exists.
-  if (!user) return ok(res, { sent: true });
+  if (!user) {
+    if (!isProd) logger.info({ requested, previous }, 'resend-verification skipped: no matching user');
+    return ok(res, { sent: true });
+  }
 
   const target = requested ?? user.email;
-  if (!target) return ok(res, { sent: true });
+  if (!target) {
+    if (!isProd) logger.info({ requested, previous }, 'resend-verification skipped: no target email');
+    return ok(res, { sent: true });
+  }
 
   if (requested && requested !== user.email) {
     user.email = requested;

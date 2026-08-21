@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { config } from './config.js';
+import { config, isTest } from './config.js';
 import { ErrorCode, err } from './errors.js';
 import { logger } from './logger.js';
 
@@ -8,7 +8,7 @@ import { logger } from './logger.js';
  * which vendor is in use.
  *
  * `console` logs the payload (OTP included) — required for local tests.
- * Production: Twilio for SMS, Resend for email.
+ * Production: Twilio for SMS, Brevo for email.
  */
 export interface Messenger {
   sendSms(to: string, body: string): Promise<void>;
@@ -67,7 +67,8 @@ class TwilioSms {
   }
 }
 
-class ResendEmail {
+/** Brevo transactional email — POST /v3/smtp/email */
+class BrevoEmail {
   async sendEmail(to: string, subject: string, body: string): Promise<void> {
     const apiKey = config.EMAIL_API_KEY;
     if (!apiKey) {
@@ -78,29 +79,68 @@ class ResendEmail {
       );
     }
 
-    const res = await fetch('https://api.resend.com/emails', {
+    const sender = parseFrom(config.EMAIL_FROM);
+    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        accept: 'application/json',
+        'api-key': apiKey,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: config.EMAIL_FROM,
-        to: [to],
+        sender,
+        to: [{ email: to }],
         subject,
-        text: body,
+        textContent: body,
+        htmlContent: toHtml(body),
       }),
     });
 
     if (!res.ok) {
-      logger.error({ status: res.status, to: mask(to) }, 'resend email failed');
+      const detail = await brevoErrorDetail(res);
+      logger.error({ status: res.status, detail, to: mask(to) }, 'brevo email failed');
       throw err.custom(
         502,
         ErrorCode.PROVIDER_UNAVAILABLE,
         "Impossible d'envoyer l'e-mail. Réessayez dans un instant.",
       );
     }
+
+    const accepted = (await res.json().catch(() => ({}))) as { messageId?: string };
+    logger.info({ to: mask(to), messageId: accepted.messageId }, 'brevo email accepted');
   }
+}
+
+function parseFrom(from: string): { name: string; email: string } {
+  const named = from.match(/^\s*(.+?)\s*<([^>]+)>\s*$/);
+  if (named) {
+    return {
+      name: (named[1] ?? 'ChapGo').replace(/^["']|["']$/g, '').trim() || 'ChapGo',
+      email: (named[2] ?? '').trim(),
+    };
+  }
+  return { name: 'ChapGo', email: from.trim() };
+}
+
+async function brevoErrorDetail(res: Response): Promise<string> {
+  try {
+    const json = (await res.json()) as { message?: string; code?: string };
+    return [json.code, json.message].filter(Boolean).join(': ') || res.statusText;
+  } catch {
+    return res.statusText;
+  }
+}
+
+function toHtml(text: string): string {
+  const escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  const withLinks = escaped.replace(
+    /(https?:\/\/[^\s]+)/g,
+    '<a href="$1">$1</a>',
+  );
+  return `<p style="font-family:sans-serif;font-size:16px;line-height:1.5">${withLinks.replace(/\n/g, '<br/>')}</p>`;
 }
 
 function mask(value: string): string {
@@ -113,13 +153,13 @@ function mask(value: string): string {
 
 const consoleMessenger = new ConsoleMessenger();
 const twilioSms = new TwilioSms();
-const resendEmail = new ResendEmail();
+const brevoEmail = new BrevoEmail();
 
 const smsProvider: Pick<Messenger, 'sendSms'> =
-  config.SMS_PROVIDER === 'console' ? consoleMessenger : twilioSms;
+  isTest || config.SMS_PROVIDER === 'console' ? consoleMessenger : twilioSms;
 
 const emailProvider: Pick<Messenger, 'sendEmail'> =
-  config.EMAIL_PROVIDER === 'console' ? consoleMessenger : resendEmail;
+  isTest || config.EMAIL_PROVIDER === 'console' ? consoleMessenger : brevoEmail;
 
 export const messenger: Messenger = {
   sendSms: (to, body) => smsProvider.sendSms(to, body),

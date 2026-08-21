@@ -34,7 +34,7 @@ const EnvSchema = z.object({
   TWILIO_AUTH_TOKEN: z.string().default(''),
   TWILIO_FROM: z.string().default(''),
 
-  EMAIL_PROVIDER: z.enum(['console', 'http', 'resend']).default('console'),
+  EMAIL_PROVIDER: z.enum(['console', 'http', 'resend', 'brevo']).default('console'),
   EMAIL_API_KEY: z.string().default(''),
   EMAIL_FROM: z.string().default('no-reply@chapgo.ci'),
   APP_PUBLIC_URL: z.string().default('https://app.chapgo.ci'),
