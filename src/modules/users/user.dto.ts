@@ -1,0 +1,57 @@
+import type { Types } from 'mongoose';
+
+/**
+ * Serialization. `id` not `_id`, and never a hash.
+ *
+ * Field names match lib/shared/models/user.dart exactly — a rename here
+ * breaks fromJson on the client.
+ */
+export function toUserDto(u: Record<string, any>) {
+  return {
+    id: String(u._id),
+    role: u.role,
+    firstName: u.firstName,
+    lastName: u.lastName,
+    email: u.email ?? null,
+    phone: u.phone ?? null,
+    photoId: u.photoId ? String(u.photoId) : null,
+    emailVerified: Boolean(u.emailVerifiedAt),
+    phoneVerified: Boolean(u.phoneVerifiedAt),
+    garageId: u.garageId ? String(u.garageId) : null,
+    preferences: {
+      language: u.preferences?.language ?? 'fr',
+      distanceUnit: u.preferences?.distanceUnit ?? 'km',
+      currency: u.preferences?.currency ?? 'XOF',
+      dateFormat: u.preferences?.dateFormat ?? 'dd/MM/yyyy',
+    },
+    notificationPrefs: {
+      maintenance: u.notificationPrefs?.maintenance ?? true,
+      checks: u.notificationPrefs?.checks ?? true,
+      documents: u.notificationPrefs?.documents ?? true,
+      inspection: u.notificationPrefs?.inspection ?? true,
+      garage: u.notificationPrefs?.garage ?? true,
+      promotions: u.notificationPrefs?.promotions ?? false,
+    },
+    createdAt: u.createdAt,
+  };
+}
+
+/**
+ * Narrowed view for a garage.
+ *
+ * Only what the grant allows: a display name, and the phone only if the
+ * owner shared it. No email, no address, no other vehicles.
+ */
+export function toCustomerDto(
+  u: Record<string, any>,
+  opts: { includePhone: boolean },
+) {
+  return {
+    id: String(u._id),
+    firstName: u.firstName,
+    lastName: u.lastName,
+    phone: opts.includePhone ? (u.phone ?? null) : null,
+  };
+}
+
+export type UserId = Types.ObjectId | string;

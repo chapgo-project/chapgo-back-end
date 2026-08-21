@@ -1,0 +1,63 @@
+# Render blueprint — committed so the setup is reproducible, not clicked.
+# Two services: the API and a separate cron. A sleeping web service runs
+# no cron, and silently stopped reminders are this product's worst failure.
+
+services:
+  - type: web
+    name: chapgo-api
+    runtime: node
+    plan: starter          # do NOT use free: cold starts add 30-60s
+    region: frankfurt      # closest to both target markets
+    branch: main
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - fromGroup: chapgo-shared
+
+  - type: cron
+    name: chapgo-jobs
+    runtime: node
+    plan: starter
+    region: frankfurt
+    branch: main
+    schedule: "0 3 * * *"   # 03:00 UTC daily
+    buildCommand: npm ci && npm run build
+    startCommand: npm run jobs:start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - fromGroup: chapgo-shared
+
+envVarGroups:
+  - name: chapgo-shared
+    envVars:
+      - key: STORAGE_ENDPOINT
+        sync: false
+      - key: STORAGE_BUCKET
+        sync: false
+      - key: STORAGE_ACCESS_KEY_ID
+        sync: false
+      - key: STORAGE_SECRET_ACCESS_KEY
+        sync: false
+      - key: SMS_PROVIDER
+        value: console
+      - key: SMS_API_KEY
+        sync: false
+      - key: EMAIL_PROVIDER
+        value: console
+      - key: EMAIL_API_KEY
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
