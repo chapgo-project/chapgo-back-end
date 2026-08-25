@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import nodemailer from 'nodemailer';
 import { config, isTest } from './config.js';
 import { ErrorCode, err } from './errors.js';
 import { logger } from './logger.js';
@@ -8,7 +9,7 @@ import { logger } from './logger.js';
  * which vendor is in use.
  *
  * `console` logs the payload (OTP included) — required for local tests.
- * Production: Twilio for SMS, Brevo for email.
+ * Production: Twilio for SMS, Gmail SMTP or Brevo for email.
  */
 export interface Messenger {
   sendSms(to: string, body: string): Promise<void>;
@@ -111,6 +112,48 @@ class BrevoEmail {
   }
 }
 
+/** Gmail SMTP with an App Password from a personal Google account. */
+class GmailEmail {
+  async sendEmail(to: string, subject: string, body: string): Promise<void> {
+    if (!config.GMAIL_USER || !config.GMAIL_APP_PASSWORD) {
+      throw err.custom(
+        503,
+        ErrorCode.PROVIDER_UNAVAILABLE,
+        "L'envoi d'e-mails n'est pas configuré.",
+      );
+    }
+
+    try {
+      const result = await nodemailer
+        .createTransport({
+          host: 'smtp.gmail.com',
+          port: 465,
+          secure: true,
+          auth: {
+            user: config.GMAIL_USER,
+            pass: config.GMAIL_APP_PASSWORD,
+          },
+        })
+        .sendMail({
+          from: config.EMAIL_FROM || config.GMAIL_USER,
+          to,
+          subject,
+          text: body,
+          html: toHtml(body),
+        });
+
+      logger.info({ to: mask(to), messageId: result.messageId }, 'gmail email accepted');
+    } catch (cause) {
+      logger.error({ err: cause, to: mask(to) }, 'gmail email failed');
+      throw err.custom(
+        502,
+        ErrorCode.PROVIDER_UNAVAILABLE,
+        "Impossible d'envoyer l'e-mail. Réessayez dans un instant.",
+      );
+    }
+  }
+}
+
 function parseFrom(from: string): { name: string; email: string } {
   const named = from.match(/^\s*(.+?)\s*<([^>]+)>\s*$/);
   if (named) {
@@ -154,12 +197,17 @@ function mask(value: string): string {
 const consoleMessenger = new ConsoleMessenger();
 const twilioSms = new TwilioSms();
 const brevoEmail = new BrevoEmail();
+const gmailEmail = new GmailEmail();
 
 const smsProvider: Pick<Messenger, 'sendSms'> =
   isTest || config.SMS_PROVIDER === 'console' ? consoleMessenger : twilioSms;
 
 const emailProvider: Pick<Messenger, 'sendEmail'> =
-  isTest || config.EMAIL_PROVIDER === 'console' ? consoleMessenger : brevoEmail;
+  isTest || config.EMAIL_PROVIDER === 'console'
+    ? consoleMessenger
+    : config.EMAIL_PROVIDER === 'gmail'
+      ? gmailEmail
+      : brevoEmail;
 
 export const messenger: Messenger = {
   sendSms: (to, body) => smsProvider.sendSms(to, body),
