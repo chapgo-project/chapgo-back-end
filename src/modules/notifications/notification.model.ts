@@ -20,6 +20,8 @@ const NotificationSchema = new Schema(
 
     readAt: { type: Date, default: null },
     pushSentAt: { type: Date, default: null },
+    digestPending: { type: Boolean, default: false },
+    digestKey: { type: String, default: null },
   },
   { timestamps: true, collection: 'notifications' },
 );

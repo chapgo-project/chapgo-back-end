@@ -22,6 +22,12 @@ services:
         generateValue: true
       - key: JWT_REFRESH_SECRET
         generateValue: true
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_CLIENT_EMAIL
+        sync: false
+      - key: FIREBASE_PRIVATE_KEY
+        sync: false
       - fromGroup: chapgo-shared
 
   - type: cron
@@ -30,13 +36,19 @@ services:
     plan: starter
     region: frankfurt
     branch: main
-    schedule: "0 3 * * *"   # 03:00 UTC daily
+    schedule: "0 * * * *"    # hourly: reminder sweeps and user digest hours
     buildCommand: npm ci && npm run build
     startCommand: npm run jobs:start
     envVars:
       - key: NODE_ENV
         value: production
       - key: MONGODB_URI
+        sync: false
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_CLIENT_EMAIL
+        sync: false
+      - key: FIREBASE_PRIVATE_KEY
         sync: false
       - fromGroup: chapgo-shared
 

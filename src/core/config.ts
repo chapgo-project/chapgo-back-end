@@ -43,6 +43,9 @@ const EnvSchema = z.object({
 
   /** Comma-separated OAuth client IDs (iOS, Android, Web). */
   GOOGLE_CLIENT_IDS: z.string().default(''),
+  FIREBASE_PROJECT_ID: z.string().default(''),
+  FIREBASE_CLIENT_EMAIL: z.string().default(''),
+  FIREBASE_PRIVATE_KEY: z.string().default(''),
 
   // Business thresholds. In config because they will be tuned after the
   // pilots — a literal buried in a service is where they go to die.

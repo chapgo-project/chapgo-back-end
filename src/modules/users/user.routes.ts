@@ -37,6 +37,9 @@ const NotificationPrefsBody = z.object({
   documents: z.boolean().optional(),
   inspection: z.boolean().optional(),
   garage: z.boolean().optional(),
+  mileagePrompt: z.boolean().optional(),
+  dailyDigestEnabled: z.boolean().optional(),
+  dailyDigestHour: z.number().int().min(0).max(23).optional(),
   promotions: z.boolean().optional(),
 });
 

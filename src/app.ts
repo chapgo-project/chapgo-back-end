@@ -13,6 +13,7 @@ import { userRouter } from './modules/users/user.routes.js';
 import { vehicleRouter } from './modules/vehicles/vehicle.routes.js';
 import { mileageRouter } from './modules/mileage/mileage.routes.js';
 import { maintenanceRouter, vehicleMaintenanceRouter } from './modules/maintenance/maintenance.routes.js';
+import { notificationRouter } from './modules/notifications/notification.routes.js';
 
 export function createApp() {
   const app = express();
@@ -47,6 +48,7 @@ export function createApp() {
   v1.use('/vehicles', vehicleRouter);
   v1.use('/mileage', mileageRouter);
   v1.use('/maintenance', maintenanceRouter);
+  v1.use('/notifications', notificationRouter);
 
   app.use('/api/v1', v1);
 

@@ -10,6 +10,8 @@ import { NotificationModel } from '../modules/notifications/notification.model.j
 import { OwnershipModel } from '../modules/vehicles/ownership.model.js';
 import { deriveStatus } from '../modules/reminders/status.js';
 import { computeHealth } from '../modules/vehicles/health.service.js';
+import { IssueModel } from '../modules/issues/issue.model.js';
+import { createNotification, flushDigestNotifications } from '../modules/notifications/notification.service.js';
 
 /**
  * Scheduled work. Runs as a SEPARATE Render cron service.
@@ -63,7 +65,7 @@ async function sweepReminders(): Promise<number> {
     const userId = await ownerOf(r.vehicleId);
     if (!userId) continue;
 
-    await NotificationModel.create({
+    const notification = await createNotification({
       userId,
       type: derived.status === 'overdue' ? 'reminder_overdue' : 'reminder_due_soon',
       title: derived.status === 'overdue' ? `${r.label} — en retard` : `${r.label} à prévoir`,
@@ -72,7 +74,9 @@ async function sweepReminders(): Promise<number> {
       targetType: 'reminder',
       targetId: String(r._id),
       vehicleId: r.vehicleId,
+      preference: r.category === 'technical_inspection' ? 'inspection' : 'maintenance',
     });
+    if (!notification) continue;
     await ReminderModel.updateOne({ _id: r._id }, { lastNotifiedAt: new Date() });
     notified++;
   }
@@ -103,7 +107,7 @@ async function sweepDocuments(): Promise<number> {
     }).lean();
     if (recent) continue;
 
-    await NotificationModel.create({
+    await createNotification({
       userId,
       type: expired ? 'document_expired' : 'document_expiring',
       title: expired ? `${d.label} — expiré` : `${d.label} expire bientôt`,
@@ -114,6 +118,7 @@ async function sweepDocuments(): Promise<number> {
       targetType: 'document',
       targetId: String(d._id),
       vehicleId: d.vehicleId,
+      preference: 'documents',
     });
     notified++;
   }
@@ -166,7 +171,7 @@ async function sweepStaleMileage(): Promise<number> {
     }).lean();
     if (recent) continue;
 
-    await NotificationModel.create({
+    await createNotification({
       userId,
       type: 'mileage_stale',
       title: 'Mettez à jour votre kilométrage',
@@ -174,6 +179,68 @@ async function sweepStaleMileage(): Promise<number> {
       targetType: 'vehicle',
       targetId: String(v._id),
       vehicleId: v._id,
+      preference: 'mileagePrompt',
+    });
+    notified++;
+  }
+  return notified;
+}
+
+/** Notify once per open issue until the owner changes its status. */
+async function sweepPendingIssues(): Promise<number> {
+  const issues = await IssueModel.find({ status: { $in: ['to_check', 'repair_planned'] } })
+    .select('_id vehicleId title reportedById')
+    .lean();
+  let notified = 0;
+  for (const issue of issues) {
+    const userId = await ownerOf(issue.vehicleId);
+    if (!userId) continue;
+    const recent = await NotificationModel.findOne({
+      userId,
+      type: 'pending_issue',
+      targetId: String(issue._id),
+      createdAt: { $gte: new Date(Date.now() - 7 * 86_400_000) },
+    }).lean();
+    if (recent) continue;
+    await createNotification({
+      userId,
+      type: 'pending_issue',
+      title: 'Problème à traiter',
+      body: issue.title,
+      targetType: 'issue',
+      targetId: String(issue._id),
+      vehicleId: issue.vehicleId,
+      preference: 'checks',
+    });
+    notified++;
+  }
+  return notified;
+}
+
+/** Notify owners when a garage proposes a future maintenance action. */
+async function sweepGarageProposals(): Promise<number> {
+  const proposals = await ReminderModel.find({ status: 'proposed', enabled: true })
+    .select('_id vehicleId label')
+    .lean();
+  let notified = 0;
+  for (const proposal of proposals) {
+    const userId = await ownerOf(proposal.vehicleId);
+    if (!userId) continue;
+    const recent = await NotificationModel.findOne({
+      userId,
+      type: 'garage_event_proposed',
+      targetId: String(proposal._id),
+    }).lean();
+    if (recent) continue;
+    await createNotification({
+      userId,
+      type: 'garage_event_proposed',
+      title: 'Nouvelle proposition du garage',
+      body: proposal.label,
+      targetType: 'reminder',
+      targetId: String(proposal._id),
+      vehicleId: proposal.vehicleId,
+      preference: 'garage',
     });
     notified++;
   }
@@ -214,6 +281,9 @@ async function main() {
     ['documents', sweepDocuments],
     ['access', sweepAccess],
     ['staleMileage', sweepStaleMileage],
+    ['pendingIssues', sweepPendingIssues],
+    ['garageProposals', sweepGarageProposals],
+    ['notificationDigest', flushDigestNotifications],
     ['orphanAttachments', sweepOrphanAttachments],
     ['health', sweepHealth],
   ];

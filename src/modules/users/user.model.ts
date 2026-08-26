@@ -43,6 +43,9 @@ const UserSchema = new Schema(
       documents: { type: Boolean, default: true },
       inspection: { type: Boolean, default: true },
       garage: { type: Boolean, default: true },
+      mileagePrompt: { type: Boolean, default: false },
+      dailyDigestEnabled: { type: Boolean, default: true },
+      dailyDigestHour: { type: Number, min: 0, max: 23, default: 9 },
       // Commercial messages: OFF by default. Consent must be given, not assumed.
       promotions: { type: Boolean, default: false },
     },

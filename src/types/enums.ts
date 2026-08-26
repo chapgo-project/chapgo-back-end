@@ -96,6 +96,7 @@ export const ASSESSMENT_CATEGORIES = [
 export const NOTIFICATION_TYPES = [
   'reminder_due_soon', 'reminder_overdue', 'document_expiring', 'document_expired',
   'inspection_due', 'retest_due', 'mileage_stale',
+  'pending_issue', 'garage_event_proposed',
   'garage_access_requested', 'access_approved', 'access_rejected', 'access_revoked',
   'access_expiring', 'intervention_submitted', 'intervention_accepted',
   'correction_requested', 'correction_submitted', 'transfer_completed', 'follow_up',
