@@ -42,7 +42,7 @@ const OtpChallengeSchema = new Schema(
     channel: { type: String, enum: ['sms', 'email'], required: true },
     purpose: {
       type: String,
-      enum: ['phone_login', 'phone_verify', 'email_verify', 'password_reset'],
+      enum: ['phone_login', 'phone_verify', 'email_verify', 'email_change', 'password_reset'],
       required: true,
     },
     codeHash: { type: String, required: true },

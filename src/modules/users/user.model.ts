@@ -25,6 +25,12 @@ const UserSchema = new Schema(
     emailVerifiedAt: { type: Date, default: null },
     phoneVerifiedAt: { type: Date, default: null },
 
+    /** Set while a change is waiting on the new inbox. Login still uses `email`. */
+    pendingEmail: { type: String, lowercase: true, trim: true, default: null },
+
+    /** Set while a new number is waiting on the SMS code. Login still uses `phone`. */
+    pendingPhone: { type: String, trim: true, default: null },
+
     photoId: { type: Schema.Types.ObjectId, ref: 'Attachment', default: null },
 
     /** Cloudinary public id (`chapgo/users/{id}/profile`) and asset version. */

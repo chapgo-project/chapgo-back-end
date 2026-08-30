@@ -5,7 +5,8 @@ import { OwnershipModel } from '../src/modules/vehicles/ownership.model.js';
 import { MileageModel } from '../src/modules/mileage/mileage.model.js';
 import { AccessModel } from '../src/modules/access/access.model.js';
 import { hashPassword } from '../src/core/password.js';
-import { issueAccessToken } from '../src/core/tokens.js';
+import { hashToken, issueAccessToken } from '../src/core/tokens.js';
+import { OtpChallengeModel } from '../src/modules/auth/session.model.js';
 
 let seq = 0;
 const next = () => ++seq;
@@ -127,4 +128,20 @@ export function actorOf(user: { _id: unknown; role: string; garageId?: unknown }
     role: user.role as 'owner' | 'garage' | 'admin',
     ...(user.garageId ? { garageId: String(user.garageId) } : {}),
   };
+}
+
+export async function peekOtp(identifier: string, purpose?: string) {
+  const challenge = await OtpChallengeModel.findOne({
+    identifier,
+    consumedAt: null,
+    ...(purpose ? { purpose } : {}),
+  })
+    .sort({ createdAt: -1 })
+    .lean();
+  if (!challenge) return '';
+  for (let i = 0; i < 1_000_000; i++) {
+    const candidate = String(i).padStart(6, '0');
+    if (hashToken(candidate) === challenge.codeHash) return candidate;
+  }
+  return '';
 }

@@ -10,6 +10,8 @@ import { logger } from '../../core/logger.js';
 import { generateLinkToken, messenger, appUrl } from '../../core/messaging.js';
 import { verifyGoogleIdToken } from '../../core/google.js';
 import { UserModel } from '../users/user.model.js';
+import { applyConfirmedEmail } from '../users/email-change.service.js';
+import { findUserByPhone } from '../users/phone-link.service.js';
 import { OtpChallengeModel, RefreshTokenModel } from './session.model.js';
 import type { LoginInput, RegisterInput } from './auth.schema.js';
 
@@ -70,7 +72,12 @@ export async function register(input: RegisterInput) {
     );
   }
   if (input.phone) {
-    const byPhone = await UserModel.findOne({ phone: input.phone }).select('_id').lean();
+    const byPhone = await UserModel.findOne({
+      deletedAt: null,
+      $or: [{ phone: input.phone }, { pendingPhone: input.phone }],
+    })
+      .select('_id')
+      .lean();
     if (byPhone) {
       throw err.conflict(ErrorCode.PHONE_ALREADY_EXISTS, 'Ce numéro est déjà utilisé.', 'phone');
     }
@@ -114,11 +121,11 @@ export async function sendEmailVerification(userId: string, email: string): Prom
   );
 }
 
-export async function verifyEmail(token: string): Promise<SessionPair> {
+export async function verifyEmail(token: string): Promise<SessionPair & { emailChanged: boolean }> {
   const hash = hashToken(token);
   const challenge = await OtpChallengeModel.findOne({
     codeHash: hash,
-    purpose: 'email_verify',
+    purpose: { $in: ['email_verify', 'email_change'] },
     consumedAt: null,
   });
 
@@ -132,6 +139,11 @@ export async function verifyEmail(token: string): Promise<SessionPair> {
   challenge.consumedAt = new Date();
   await challenge.save();
 
+  if (challenge.purpose === 'email_change') {
+    const user = await applyConfirmedEmail(String(challenge.userId), challenge.identifier);
+    return { ...(await issueSession(user)), emailChanged: true };
+  }
+
   const user = await UserModel.findById(challenge.userId);
   if (!user) throw err.notFound('Compte introuvable.');
   user.emailVerifiedAt = new Date();
@@ -139,7 +151,7 @@ export async function verifyEmail(token: string): Promise<SessionPair> {
 
   // Opens the session directly: asking someone to sign in seconds after
   // confirming their address is friction with no security benefit.
-  return issueSession(user);
+  return { ...(await issueSession(user)), emailChanged: false };
 }
 
 /* ──────────────────────────── Email login ─────────────────────────── */
@@ -329,7 +341,7 @@ export interface PhoneChallengeResult {
 }
 
 export async function requestPhoneCode(phone: string): Promise<PhoneChallengeResult> {
-  const existing = await UserModel.findOne({ phone, deletedAt: null }).select('_id').lean();
+  const existing = await findUserByPhone(phone);
 
   // Server-side cooldown. The client countdown is a convenience, not the guard.
   const recent = await OtpChallengeModel.findOne({
@@ -432,8 +444,6 @@ export async function verifyPhoneCode(
   let isNewAccount = false;
 
   if (!user) {
-    // The account exists but the profile is incomplete: the app opens O19,
-    // and PATCH /users/me fills in the name.
     user = await UserModel.create({
       role: 'owner',
       firstName: '',
@@ -442,8 +452,10 @@ export async function verifyPhoneCode(
       phoneVerifiedAt: new Date(),
     });
     isNewAccount = true;
-  } else if (!user.phoneVerifiedAt) {
+  } else {
+    user.phone = phone;
     user.phoneVerifiedAt = new Date();
+    user.pendingPhone = null;
     await user.save();
   }
 
@@ -462,7 +474,10 @@ export async function loginWithGoogle(
     return { session: await issueSession(byGoogle), user: byGoogle, isNewAccount: false };
   }
 
-  const byEmail = await UserModel.findOne({ email: profile.email, deletedAt: null });
+  const byEmail = await UserModel.findOne({
+    deletedAt: null,
+    $or: [{ email: profile.email }, { pendingEmail: profile.email }],
+  });
   if (byEmail) {
     if (byEmail.googleId && byEmail.googleId !== profile.googleId) {
       throw err.conflict(
@@ -472,6 +487,10 @@ export async function loginWithGoogle(
       );
     }
     byEmail.googleId = profile.googleId;
+    if (byEmail.email !== profile.email) {
+      byEmail.email = profile.email;
+      byEmail.pendingEmail = null;
+    }
     byEmail.emailVerifiedAt = byEmail.emailVerifiedAt ?? new Date();
     if (!byEmail.firstName) byEmail.firstName = profile.firstName;
     if (!byEmail.lastName) byEmail.lastName = profile.lastName;

@@ -5,12 +5,24 @@ import { validateBody } from '../../core/validate.js';
 import { actorOf, requireAuth, requireLiveAccount } from '../../core/authMiddleware.js';
 import { hashPassword, verifyPassword } from '../../core/password.js';
 import { err, ErrorCode } from '../../core/errors.js';
-import { exportLimiter, uploadLimiter } from '../../core/rateLimit.js';
+import { exportLimiter, uploadLimiter, authLimiter, otpRequestLimiter, otpVerifyLimiter } from '../../core/rateLimit.js';
 import { UserModel } from './user.model.js';
 import { toUserDto } from './user.dto.js';
 import { revokeAllSessions } from '../auth/auth.service.js';
 import { deleteAccount, requestLogbookExport } from './account.service.js';
 import { confirmAvatar, createAvatarSign, deleteAvatar } from './avatar.service.js';
+import {
+  cancelEmailChange,
+  requestEmailChange,
+  resendEmailChange,
+} from './email-change.service.js';
+import {
+  cancelPhoneLink,
+  requestPhoneLink,
+  resendPhoneLink,
+  verifyPhoneLink,
+} from './phone-link.service.js';
+import { linkGoogleAccount } from './google-link.service.js';
 
 export const userRouter = Router();
 userRouter.use(requireAuth, requireLiveAccount);
@@ -18,8 +30,25 @@ userRouter.use(requireAuth, requireLiveAccount);
 const UpdateProfileBody = z.object({
   firstName: z.string().trim().min(2).max(50).optional(),
   lastName: z.string().trim().min(2).max(50).optional(),
-  email: z.string().trim().toLowerCase().email('Adresse e-mail invalide.').optional(),
-  phone: z.string().trim().regex(/^\+[1-9]\d{7,14}$/, 'Numéro invalide.').optional(),
+});
+
+const PhoneLinkBody = z.object({
+  phone: z.string().trim().regex(/^\+[1-9]\d{7,14}$/, 'Numéro invalide.'),
+});
+
+const PhoneLinkVerifyBody = z.object({
+  phone: z.string().trim().regex(/^\+[1-9]\d{7,14}$/, 'Numéro invalide.'),
+  code: z.string().regex(/^\d{6}$/, 'Le code doit comporter 6 chiffres.'),
+});
+
+const LinkGoogleBody = z.object({
+  idToken: z.string().min(20, 'Jeton Google manquant.'),
+});
+
+const ChangeEmailBody = z.object({
+  email: z.string().trim().toLowerCase().email('Adresse e-mail invalide.'),
+  password: z.string().min(1).optional(),
+  googleIdToken: z.string().min(20).optional(),
 });
 
 const ConfirmAvatarBody = z.object({
@@ -92,25 +121,86 @@ userRouter.patch(
     const user = await UserModel.findById(actorOf(req).userId);
     if (!user) throw err.unauthenticated();
 
-    if (req.body.email && req.body.email !== user.email) {
-      const taken = await UserModel.findOne({ email: req.body.email }).select('_id').lean();
-      if (taken) {
-        throw err.conflict(
-          ErrorCode.EMAIL_ALREADY_EXISTS,
-          'Cette adresse e-mail est déjà utilisée.',
-          'email',
-        );
-      }
-      // A new address is unverified until confirmed.
-      user.emailVerifiedAt = null;
-    }
-
     if (req.body.firstName !== undefined) user.firstName = req.body.firstName;
     if (req.body.lastName !== undefined) user.lastName = req.body.lastName;
-    if (req.body.email !== undefined) user.email = req.body.email;
-    if (req.body.phone !== undefined) user.phone = req.body.phone;
     await user.save();
     return ok(res, toUserDto(user.toObject()));
+  }),
+);
+
+/**
+ * POST /users/me/email — request a verified change.
+ * The login address does not move until the new inbox opens the link.
+ */
+userRouter.post(
+  '/me/email',
+  authLimiter,
+  validateBody(ChangeEmailBody),
+  handler(async (req, res) => {
+    return ok(
+      res,
+      await requestEmailChange(actorOf(req).userId, req.body),
+    );
+  }),
+);
+
+userRouter.post(
+  '/me/email/resend',
+  authLimiter,
+  handler(async (req, res) => {
+    return ok(res, await resendEmailChange(actorOf(req).userId));
+  }),
+);
+
+userRouter.delete(
+  '/me/email/pending',
+  handler(async (req, res) => {
+    return ok(res, await cancelEmailChange(actorOf(req).userId));
+  }),
+);
+
+userRouter.post(
+  '/me/phone/request-code',
+  otpRequestLimiter,
+  validateBody(PhoneLinkBody),
+  handler(async (req, res) => {
+    return ok(res, await requestPhoneLink(actorOf(req).userId, req.body.phone));
+  }),
+);
+
+userRouter.post(
+  '/me/phone/resend-code',
+  otpRequestLimiter,
+  handler(async (req, res) => {
+    return ok(res, await resendPhoneLink(actorOf(req).userId));
+  }),
+);
+
+userRouter.post(
+  '/me/phone/verify-code',
+  otpVerifyLimiter,
+  validateBody(PhoneLinkVerifyBody),
+  handler(async (req, res) => {
+    return ok(
+      res,
+      await verifyPhoneLink(actorOf(req).userId, req.body.phone, req.body.code),
+    );
+  }),
+);
+
+userRouter.delete(
+  '/me/phone/pending',
+  handler(async (req, res) => {
+    return ok(res, await cancelPhoneLink(actorOf(req).userId));
+  }),
+);
+
+userRouter.post(
+  '/me/google',
+  authLimiter,
+  validateBody(LinkGoogleBody),
+  handler(async (req, res) => {
+    return ok(res, await linkGoogleAccount(actorOf(req).userId, req.body.idToken));
   }),
 );
 

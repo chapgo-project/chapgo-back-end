@@ -162,7 +162,9 @@ export async function deleteAccount(userId: string, password?: string) {
   user.firstName = 'Compte';
   user.lastName = 'supprimé';
   user.email = null;
+  user.pendingEmail = null;
   user.phone = null;
+  user.pendingPhone = null;
   user.passwordHash = null;
   user.googleId = null;
   user.photoId = null;
