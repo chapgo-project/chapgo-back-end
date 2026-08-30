@@ -3,6 +3,7 @@ import nodemailer from 'nodemailer';
 import { config, isTest } from './config.js';
 import { ErrorCode, err } from './errors.js';
 import { logger } from './logger.js';
+import { hashToken } from './tokens.js';
 
 /**
  * SMS and email, behind one interface so the auth service never knows
@@ -217,7 +218,7 @@ export const messenger: Messenger = {
 /** One-time link token. Only the hash is stored. */
 export function generateLinkToken(): { token: string; hash: string } {
   const token = crypto.randomBytes(32).toString('base64url');
-  return { token, hash: crypto.createHash('sha256').update(token).digest('hex') };
+  return { token, hash: hashToken(token) };
 }
 
 export function appUrl(path: string): string {

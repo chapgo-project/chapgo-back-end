@@ -6,6 +6,7 @@ import { hashPassword, verifyPassword } from '../../core/password.js';
 import {
   generateOtpCode, generateRefreshToken, hashToken, issueAccessToken, type Role,
 } from '../../core/tokens.js';
+import { logger } from '../../core/logger.js';
 import { generateLinkToken, messenger, appUrl } from '../../core/messaging.js';
 import { verifyGoogleIdToken } from '../../core/google.js';
 import { UserModel } from '../users/user.model.js';
@@ -251,6 +252,12 @@ export async function forgotPassword(email: string): Promise<void> {
   // says so explicitly: « Si un compte existe pour cette adresse… ».
   if (!user) return;
 
+  // A new request invalidates unused reset links so only the latest works.
+  await OtpChallengeModel.updateMany(
+    { identifier: email, purpose: 'password_reset', consumedAt: null },
+    { consumedAt: new Date() },
+  );
+
   const { token, hash } = generateLinkToken();
   await OtpChallengeModel.create({
     identifier: email,
@@ -262,11 +269,24 @@ export async function forgotPassword(email: string): Promise<void> {
     expiresAt: minutes(60),
   });
 
-  await messenger.sendEmail(
-    email,
-    'Réinitialisez votre mot de passe ChapGo',
-    `Choisissez un nouveau mot de passe : ${appUrl(`/auth/reset?token=${token}`)}`,
-  );
+  const resetUrl = appUrl(`/auth/reset?token=${token}`);
+  try {
+    await messenger.sendEmail(
+      email,
+      'Réinitialisez votre mot de passe ChapGo',
+      [
+        'Vous avez demandé à réinitialiser votre mot de passe ChapGo.',
+        '',
+        'Ouvrez ce lien pour en choisir un nouveau (valable 1 heure) :',
+        resetUrl,
+        '',
+        "Si vous n'êtes pas à l'origine de cette demande, ignorez cet e-mail.",
+      ].join('\n'),
+    );
+  } catch (cause) {
+    // Still 200: failing here would tell an attacker that the address exists.
+    logger.error({ err: cause }, 'password reset email failed');
+  }
 }
 
 export async function resetPassword(token: string, password: string): Promise<void> {

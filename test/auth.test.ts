@@ -127,6 +127,33 @@ describe('rule 9 — recovery reveals nothing', () => {
       .send({ email: 'reset@example.ci', password: 'nouveau123' });
     expect(login.status).toBe(200);
     expect(login.body.data.accessToken).toBeTruthy();
+
+    const reuse = await api()
+      .post('/api/v1/auth/reset-password')
+      .send({ token, password: 'autrepass1' });
+    expect(reuse.status).toBe(410);
+    expect(reuse.body.error.code).toBe('TOKEN_ALREADY_USED');
+  });
+
+  it('only the latest reset link works', async () => {
+    await makeOwner({ email: 'reset2@example.ci' });
+    const spy = vi.spyOn(messenger, 'sendEmail').mockResolvedValue();
+
+    await api().post('/api/v1/auth/forgot-password').send({ email: 'reset2@example.ci' });
+    const first = (spy.mock.calls[0]?.[2] as string).match(/token=([^&\s]+)/)?.[1];
+    await api().post('/api/v1/auth/forgot-password').send({ email: 'reset2@example.ci' });
+    const second = (spy.mock.calls[1]?.[2] as string).match(/token=([^&\s]+)/)?.[1];
+    spy.mockRestore();
+
+    const stale = await api()
+      .post('/api/v1/auth/reset-password')
+      .send({ token: first, password: 'nouveau123' });
+    expect(stale.status).toBe(410);
+
+    const fresh = await api()
+      .post('/api/v1/auth/reset-password')
+      .send({ token: second, password: 'nouveau123' });
+    expect(fresh.status).toBe(200);
   });
 });
 
