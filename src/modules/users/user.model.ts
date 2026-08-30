@@ -27,6 +27,10 @@ const UserSchema = new Schema(
 
     photoId: { type: Schema.Types.ObjectId, ref: 'Attachment', default: null },
 
+    /** Cloudinary public id (`chapgo/users/{id}/profile`) and asset version. */
+    avatarPublicId: { type: String, default: null },
+    avatarVersion: { type: Number, default: null },
+
     // Garage staff only.
     garageId: { type: Schema.Types.ObjectId, ref: 'Garage', default: null },
 

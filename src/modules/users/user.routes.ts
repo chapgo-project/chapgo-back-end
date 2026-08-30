@@ -5,11 +5,12 @@ import { validateBody } from '../../core/validate.js';
 import { actorOf, requireAuth, requireLiveAccount } from '../../core/authMiddleware.js';
 import { hashPassword, verifyPassword } from '../../core/password.js';
 import { err, ErrorCode } from '../../core/errors.js';
-import { exportLimiter } from '../../core/rateLimit.js';
+import { exportLimiter, uploadLimiter } from '../../core/rateLimit.js';
 import { UserModel } from './user.model.js';
 import { toUserDto } from './user.dto.js';
 import { revokeAllSessions } from '../auth/auth.service.js';
 import { deleteAccount, requestLogbookExport } from './account.service.js';
+import { confirmAvatar, createAvatarSign, deleteAvatar } from './avatar.service.js';
 
 export const userRouter = Router();
 userRouter.use(requireAuth, requireLiveAccount);
@@ -19,7 +20,11 @@ const UpdateProfileBody = z.object({
   lastName: z.string().trim().min(2).max(50).optional(),
   email: z.string().trim().toLowerCase().email('Adresse e-mail invalide.').optional(),
   phone: z.string().trim().regex(/^\+[1-9]\d{7,14}$/, 'Numéro invalide.').optional(),
-  photoId: z.string().optional().nullable(),
+});
+
+const ConfirmAvatarBody = z.object({
+  publicId: z.string().min(1),
+  version: z.coerce.number().int().positive(),
 });
 
 const PasswordBody = z.object({
@@ -100,9 +105,46 @@ userRouter.patch(
       user.emailVerifiedAt = null;
     }
 
-    Object.assign(user, req.body);
+    if (req.body.firstName !== undefined) user.firstName = req.body.firstName;
+    if (req.body.lastName !== undefined) user.lastName = req.body.lastName;
+    if (req.body.email !== undefined) user.email = req.body.email;
+    if (req.body.phone !== undefined) user.phone = req.body.phone;
     await user.save();
     return ok(res, toUserDto(user.toObject()));
+  }),
+);
+
+/**
+ * POST /users/me/avatar/sign — short-lived Cloudinary upload params.
+ * The API secret never reaches the device.
+ */
+userRouter.post(
+  '/me/avatar/sign',
+  uploadLimiter,
+  handler(async (req, res) => {
+    return ok(res, createAvatarSign(actorOf(req).userId));
+  }),
+);
+
+/** POST /users/me/avatar — persist the public id after a successful upload. */
+userRouter.post(
+  '/me/avatar',
+  uploadLimiter,
+  validateBody(ConfirmAvatarBody),
+  handler(async (req, res) => {
+    const user = await confirmAvatar(
+      actorOf(req).userId,
+      req.body.publicId,
+      req.body.version,
+    );
+    return ok(res, user);
+  }),
+);
+
+userRouter.delete(
+  '/me/avatar',
+  handler(async (req, res) => {
+    return ok(res, await deleteAvatar(actorOf(req).userId));
   }),
 );
 

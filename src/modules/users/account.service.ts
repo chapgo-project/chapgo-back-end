@@ -16,6 +16,7 @@ import { VehicleModel } from '../vehicles/vehicle.model.js';
 import { snapshotFromCollections, toCsv, toPdf } from './export.format.js';
 import { DataExportModel } from './export.model.js';
 import { UserModel } from './user.model.js';
+import { purgeStoredAvatar } from './avatar.service.js';
 
 const EXPORT_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -165,6 +166,9 @@ export async function deleteAccount(userId: string, password?: string) {
   user.passwordHash = null;
   user.googleId = null;
   user.photoId = null;
+  await purgeStoredAvatar(user.avatarPublicId);
+  user.avatarPublicId = null;
+  user.avatarVersion = null;
   user.deletedAt = new Date();
   await user.save();
 

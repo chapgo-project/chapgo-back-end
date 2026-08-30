@@ -27,6 +27,11 @@ const EnvSchema = z.object({
   STORAGE_SECRET_ACCESS_KEY: z.string().default(''),
   SIGNED_URL_TTL_MIN: z.coerce.number().int().positive().default(15),
 
+  /** Profile photos. Secret never leaves the API; the app uses a signed upload. */
+  CLOUDINARY_CLOUD_NAME: z.string().default(''),
+  CLOUDINARY_API_KEY: z.string().default(''),
+  CLOUDINARY_API_SECRET: z.string().default(''),
+
   SMS_PROVIDER: z.enum(['console', 'http', 'twilio']).default('console'),
   SMS_API_KEY: z.string().default(''),
   SMS_SENDER_ID: z.string().default('ChapGo'),

@@ -1,4 +1,5 @@
 import type { Types } from 'mongoose';
+import { avatarDeliveryUrl } from '../../core/cloudinary.js';
 
 /**
  * Serialization. `id` not `_id`, and never a hash.
@@ -15,6 +16,7 @@ export function toUserDto(u: Record<string, any>) {
     email: u.email ?? null,
     phone: u.phone ?? null,
     photoId: u.photoId ? String(u.photoId) : null,
+    avatarUrl: avatarDeliveryUrl(u.avatarPublicId, u.avatarVersion),
     emailVerified: Boolean(u.emailVerifiedAt),
     phoneVerified: Boolean(u.phoneVerifiedAt),
     garageId: u.garageId ? String(u.garageId) : null,
