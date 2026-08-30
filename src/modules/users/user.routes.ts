@@ -9,6 +9,7 @@ import { exportLimiter, uploadLimiter, authLimiter, otpRequestLimiter, otpVerify
 import { UserModel } from './user.model.js';
 import { toUserDto } from './user.dto.js';
 import { revokeAllSessions } from '../auth/auth.service.js';
+import { listDeviceSessions, revokeDeviceSession } from './session.service.js';
 import { deleteAccount, requestLogbookExport } from './account.service.js';
 import { confirmAvatar, createAvatarSign, deleteAvatar } from './avatar.service.js';
 import {
@@ -90,6 +91,7 @@ const PreferencesBody = z.object({
   distanceUnit: z.enum(['km', 'mi']).optional(),
   currency: z.string().max(5).optional(),
   dateFormat: z.string().max(20).optional(),
+  biometricEnabled: z.boolean().optional(),
 });
 
 const DeleteBody = z.object({
@@ -104,6 +106,24 @@ userRouter.get(
     const user = await UserModel.findById(actorOf(req).userId).lean();
     if (!user) throw err.unauthenticated();
     return ok(res, toUserDto(user));
+  }),
+);
+
+userRouter.get(
+  '/me/sessions',
+  handler(async (req, res) => {
+    const refresh = req.header('x-chapgo-refresh') ?? undefined;
+    return ok(res, await listDeviceSessions(actorOf(req).userId, refresh));
+  }),
+);
+
+userRouter.delete(
+  '/me/sessions/:familyId',
+  handler(async (req, res) => {
+    const familyId = req.params.familyId;
+    if (!familyId) throw err.notFound('Appareil introuvable.');
+    await revokeDeviceSession(actorOf(req).userId, familyId);
+    return ok(res, { success: true });
   }),
 );
 
@@ -256,6 +276,7 @@ userRouter.post(
     }
 
     user.passwordHash = await hashPassword(req.body.newPassword);
+    user.passwordChangedAt = new Date();
     await user.save();
 
     // Every other device is signed out: a password change usually follows a

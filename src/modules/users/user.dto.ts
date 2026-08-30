@@ -28,7 +28,10 @@ export function toUserDto(u: Record<string, any>) {
       distanceUnit: u.preferences?.distanceUnit ?? 'km',
       currency: u.preferences?.currency ?? 'XOF',
       dateFormat: u.preferences?.dateFormat ?? 'dd/MM/yyyy',
+      biometricEnabled: Boolean(u.preferences?.biometricEnabled),
     },
+    biometricEnabled: Boolean(u.preferences?.biometricEnabled),
+    passwordChangedAt: u.passwordChangedAt ?? null,
     notificationPrefs: {
       maintenance: u.notificationPrefs?.maintenance ?? true,
       checks: u.notificationPrefs?.checks ?? true,

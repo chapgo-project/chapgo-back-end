@@ -13,7 +13,7 @@ import { UserModel } from '../users/user.model.js';
 import { applyConfirmedEmail } from '../users/email-change.service.js';
 import { findUserByPhone } from '../users/phone-link.service.js';
 import { OtpChallengeModel, RefreshTokenModel } from './session.model.js';
-import type { LoginInput, RegisterInput } from './auth.schema.js';
+import type { DeviceInfoInput, LoginInput, RegisterInput } from './auth.schema.js';
 
 const MAX_FAILED_LOGINS = 8;
 const LOCK_MINUTES = 15;
@@ -36,7 +36,13 @@ async function issueSession(user: {
   _id: Types.ObjectId | string;
   role: Role;
   garageId?: Types.ObjectId | string | null;
-}, opts: { familyId?: string; rotatedFrom?: string; deviceLabel?: string } = {}): Promise<SessionPair> {
+}, opts: {
+  familyId?: string;
+  rotatedFrom?: string;
+  device?: DeviceInfoInput;
+  deviceLabel?: string | null;
+  platform?: string | null;
+} = {}): Promise<SessionPair> {
   const access = issueAccessToken({
     userId: String(user._id),
     role: user.role,
@@ -49,7 +55,9 @@ async function issueSession(user: {
     tokenHash: refresh.hash,
     familyId: opts.familyId ?? crypto.randomUUID(),
     rotatedFrom: opts.rotatedFrom ?? null,
-    deviceLabel: opts.deviceLabel ?? null,
+    deviceLabel: opts.device?.label ?? opts.deviceLabel ?? null,
+    platform: opts.device?.platform ?? opts.platform ?? 'unknown',
+    lastActiveAt: new Date(),
     expiresAt: days(config.REFRESH_TOKEN_TTL_DAYS),
   });
 
@@ -90,6 +98,7 @@ export async function register(input: RegisterInput) {
     email: input.email,
     phone: input.phone ?? null,
     passwordHash: await hashPassword(input.password),
+    passwordChangedAt: new Date(),
   });
 
   await sendEmailVerification(String(user._id), input.email);
@@ -203,12 +212,12 @@ export async function login(input: LoginInput): Promise<{ session: SessionPair; 
   user.lockedUntil = null;
   await user.save();
 
-  return { session: await issueSession(user), user };
+  return { session: await issueSession(user, { device: input.device }), user };
 }
 
 /* ───────────────────────── Refresh & logout ──────────────────────── */
 
-export async function refresh(token: string): Promise<SessionPair> {
+export async function refresh(token: string, device?: DeviceInfoInput): Promise<SessionPair> {
   const hash = hashToken(token);
   const stored = await RefreshTokenModel.findOne({ tokenHash: hash });
 
@@ -238,14 +247,24 @@ export async function refresh(token: string): Promise<SessionPair> {
   stored.revokedAt = new Date();
   await stored.save();
 
-  return issueSession(user, { familyId: stored.familyId, rotatedFrom: hash });
+  return issueSession(user, {
+    familyId: stored.familyId,
+    rotatedFrom: hash,
+    device,
+    deviceLabel: stored.deviceLabel,
+    platform: stored.platform,
+  });
 }
 
 export async function logout(refreshTokenValue?: string): Promise<void> {
   // Logout must never fail visibly: the client purges local state regardless.
   if (!refreshTokenValue) return;
-  await RefreshTokenModel.updateOne(
-    { tokenHash: hashToken(refreshTokenValue), revokedAt: null },
+  const stored = await RefreshTokenModel.findOne({
+    tokenHash: hashToken(refreshTokenValue),
+  }).select('familyId').lean();
+  if (!stored) return;
+  await RefreshTokenModel.updateMany(
+    { familyId: stored.familyId, revokedAt: null },
     { revokedAt: new Date() },
   );
 }
@@ -319,6 +338,7 @@ export async function resetPassword(token: string, password: string): Promise<vo
   if (!user) throw err.notFound('Compte introuvable.');
 
   user.passwordHash = await hashPassword(password);
+  user.passwordChangedAt = new Date();
   user.failedLoginCount = 0;
   user.lockedUntil = null;
   await user.save();
@@ -396,6 +416,7 @@ export async function requestPhoneCode(phone: string): Promise<PhoneChallengeRes
 export async function verifyPhoneCode(
   phone: string,
   code: string,
+  device?: DeviceInfoInput,
 ): Promise<{ session: SessionPair; user: unknown; isNewAccount: boolean }> {
   const challenge = await OtpChallengeModel.findOne({
     identifier: phone,
@@ -459,19 +480,20 @@ export async function verifyPhoneCode(
     await user.save();
   }
 
-  return { session: await issueSession(user), user, isNewAccount };
+  return { session: await issueSession(user, { device }), user, isNewAccount };
 }
 
 /* ────────────────────────── Google OAuth ─────────────────────────── */
 
 export async function loginWithGoogle(
   idToken: string,
+  device?: DeviceInfoInput,
 ): Promise<{ session: SessionPair; user: unknown; isNewAccount: boolean }> {
   const profile = await verifyGoogleIdToken(idToken);
 
   const byGoogle = await UserModel.findOne({ googleId: profile.googleId, deletedAt: null });
   if (byGoogle) {
-    return { session: await issueSession(byGoogle), user: byGoogle, isNewAccount: false };
+    return { session: await issueSession(byGoogle, { device }), user: byGoogle, isNewAccount: false };
   }
 
   const byEmail = await UserModel.findOne({
@@ -495,7 +517,7 @@ export async function loginWithGoogle(
     if (!byEmail.firstName) byEmail.firstName = profile.firstName;
     if (!byEmail.lastName) byEmail.lastName = profile.lastName;
     await byEmail.save();
-    return { session: await issueSession(byEmail), user: byEmail, isNewAccount: false };
+    return { session: await issueSession(byEmail, { device }), user: byEmail, isNewAccount: false };
   }
 
   const user = await UserModel.create({
@@ -507,6 +529,6 @@ export async function loginWithGoogle(
     emailVerifiedAt: new Date(),
   });
 
-  return { session: await issueSession(user), user, isNewAccount: true };
+  return { session: await issueSession(user, { device }), user, isNewAccount: true };
 }
 

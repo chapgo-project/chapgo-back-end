@@ -28,13 +28,22 @@ export const RegisterBody = z.object({
   phone: phone.optional(),
 });
 
+export const DeviceInfo = z.object({
+  label: z.string().trim().min(1).max(80).optional(),
+  platform: z.enum(['ios', 'android', 'web', 'unknown']).optional(),
+});
+
+export type DeviceInfoInput = z.infer<typeof DeviceInfo>;
+
 export const LoginBody = z.object({
   email,
   password: z.string().min(1, 'Saisissez votre mot de passe.'),
+  device: DeviceInfo.optional(),
 });
 
 export const RefreshBody = z.object({
   refreshToken: z.string().min(20),
+  device: DeviceInfo.optional(),
 });
 
 export const ForgotPasswordBody = z.object({ email });
@@ -58,10 +67,12 @@ export const PhoneRequestBody = z.object({ phone });
 export const PhoneVerifyBody = z.object({
   phone,
   code: z.string().regex(/^\d{6}$/, 'Le code doit comporter 6 chiffres.'),
+  device: DeviceInfo.optional(),
 });
 
 export const GoogleBody = z.object({
   idToken: z.string().min(20, 'Jeton Google manquant.'),
+  device: DeviceInfo.optional(),
 });
 
 export const VerifyOtpBody = z.object({

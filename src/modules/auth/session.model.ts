@@ -12,6 +12,8 @@ const RefreshTokenSchema = new Schema(
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     tokenHash: { type: String, required: true, unique: true },
     deviceLabel: { type: String, default: null },
+    platform: { type: String, enum: ['ios', 'android', 'web', 'unknown'], default: 'unknown' },
+    lastActiveAt: { type: Date, default: Date.now },
     /** Rotation chain: reuse of a rotated token revokes the whole family. */
     rotatedFrom: { type: String, default: null },
     familyId: { type: String, required: true },

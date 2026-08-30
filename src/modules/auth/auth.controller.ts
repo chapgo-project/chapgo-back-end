@@ -17,7 +17,7 @@ export const login = handler(async (req: Request, res: Response) => {
 });
 
 export const refresh = handler(async (req: Request, res: Response) => {
-  const session = await svc.refresh(req.body.refreshToken);
+  const session = await svc.refresh(req.body.refreshToken, req.body.device);
   return ok(res, session);
 });
 
@@ -89,6 +89,7 @@ export const verifyPhoneCode = handler(async (req: Request, res: Response) => {
   const { session, user, isNewAccount } = await svc.verifyPhoneCode(
     req.body.phone,
     req.body.code,
+    req.body.device,
   );
   return ok(res, {
     ...session,
@@ -103,7 +104,10 @@ export const resendPhoneCode = handler(async (req: Request, res: Response) => {
 });
 
 export const google = handler(async (req: Request, res: Response) => {
-  const { session, user, isNewAccount } = await svc.loginWithGoogle(req.body.idToken);
+  const { session, user, isNewAccount } = await svc.loginWithGoogle(
+    req.body.idToken,
+    req.body.device,
+  );
   return ok(res, {
     ...session,
     isNewAccount,

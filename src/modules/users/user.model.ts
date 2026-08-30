@@ -20,6 +20,7 @@ const UserSchema = new Schema(
     phone: { type: String, trim: true, default: null },
 
     passwordHash: { type: String, default: null },
+    passwordChangedAt: { type: Date, default: null },
     googleId: { type: String, default: null },
 
     emailVerifiedAt: { type: Date, default: null },
@@ -45,6 +46,7 @@ const UserSchema = new Schema(
       distanceUnit: { type: String, enum: ['km', 'mi'], default: 'km' },
       currency: { type: String, default: 'XOF' },
       dateFormat: { type: String, default: 'dd/MM/yyyy' },
+      biometricEnabled: { type: Boolean, default: false },
     },
 
     notificationPrefs: {
