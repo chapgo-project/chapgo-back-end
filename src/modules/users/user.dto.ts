@@ -37,6 +37,7 @@ export function toUserDto(u: Record<string, any>) {
       promotions: u.notificationPrefs?.promotions ?? false,
     },
     createdAt: u.createdAt,
+    hasPassword: Boolean(u.passwordHash),
   };
 }
 

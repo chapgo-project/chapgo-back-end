@@ -52,5 +52,8 @@ export const lookupLimiter = limiter({ windowMs: 60_000, max: 20 });
 /** Upload creation — guards storage cost. */
 export const uploadLimiter = limiter({ windowMs: 60_000, max: 60 });
 
+/** Account export — a few JSON dumps per hour is enough. */
+export const exportLimiter = limiter({ windowMs: 60 * 60_000, max: 5 });
+
 /** Everything else. */
 export const globalLimiter = limiter({ windowMs: 60_000, max: 300 });

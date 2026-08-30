@@ -5,11 +5,11 @@ import { validateBody } from '../../core/validate.js';
 import { actorOf, requireAuth, requireLiveAccount } from '../../core/authMiddleware.js';
 import { hashPassword, verifyPassword } from '../../core/password.js';
 import { err, ErrorCode } from '../../core/errors.js';
+import { exportLimiter } from '../../core/rateLimit.js';
 import { UserModel } from './user.model.js';
 import { toUserDto } from './user.dto.js';
 import { revokeAllSessions } from '../auth/auth.service.js';
-import { OwnershipModel } from '../vehicles/ownership.model.js';
-import { AccessModel } from '../access/access.model.js';
+import { deleteAccount, requestLogbookExport } from './account.service.js';
 
 export const userRouter = Router();
 userRouter.use(requireAuth, requireLiveAccount);
@@ -160,50 +160,33 @@ userRouter.patch(
 );
 
 /**
+ * POST /users/me/export — CSV (interchange) + PDF (readable report).
+ * Download links are valid 24 h and emailed when an address exists.
+ */
+userRouter.post(
+  '/me/export',
+  exportLimiter,
+  handler(async (req, res) => {
+    const result = await requestLogbookExport(actorOf(req).userId, req);
+    return ok(res, result);
+  }),
+);
+
+/**
  * DELETE /users/me — RULE 8: anonymise, do not erase.
  *
  * Personal fields are cleared and sessions revoked, but vehicle history is
  * RETAINED: it belongs to the vehicle, and a future owner has a legitimate
  * claim to it. Deleting it would destroy the product's core promise.
+ *
+ * Password is required only when the account has one. Google / SMS accounts
+ * confirm with `{ confirm: true }` alone.
  */
 userRouter.delete(
   '/me',
   validateBody(DeleteBody),
   handler(async (req, res) => {
-    const user = await UserModel.findById(actorOf(req).userId);
-    if (!user) throw err.unauthenticated();
-
-    if (user.passwordHash) {
-      const valid = req.body.password
-        ? await verifyPassword(user.passwordHash, req.body.password)
-        : false;
-      if (!valid) {
-        throw err.custom(401, ErrorCode.INVALID_CREDENTIALS, 'Mot de passe incorrect.', {
-          field: 'password',
-        });
-      }
-    }
-
-    const userId = String(user._id);
-
-    // Ownership periods close, so the vehicles become unreachable by this
-    // account while their history survives, tagged to an anonymous period.
-    await OwnershipModel.updateMany({ userId, endedAt: null }, { endedAt: new Date() });
-    await AccessModel.updateMany(
-      { ownerUserId: userId, status: 'approved' },
-      { status: 'revoked', revokedAt: new Date() },
-    );
-
-    user.firstName = 'Compte';
-    user.lastName = 'supprimé';
-    user.email = null;
-    user.phone = null;
-    user.passwordHash = null;
-    user.photoId = null;
-    user.deletedAt = new Date();
-    await user.save();
-
-    await revokeAllSessions(userId);
+    await deleteAccount(actorOf(req).userId, req.body.password);
     return ok(res, { success: true });
   }),
 );
