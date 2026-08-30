@@ -1,6 +1,7 @@
 import { OAuth2Client } from 'google-auth-library';
 import { config } from './config.js';
 import { AppError, ErrorCode, err } from './errors.js';
+import { logger } from './logger.js';
 
 export interface GoogleProfile {
   googleId: string;
@@ -66,6 +67,10 @@ export async function verifyGoogleIdToken(idToken: string): Promise<GoogleProfil
     };
   } catch (e) {
     if (e instanceof AppError) throw e;
+    logger.warn(
+      { err: e instanceof Error ? e.message : 'unknown' },
+      'Google ID token verification failed',
+    );
     throw err.custom(
       401,
       ErrorCode.GOOGLE_TOKEN_INVALID,

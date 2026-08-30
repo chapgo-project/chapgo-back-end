@@ -30,6 +30,7 @@ export function toUserDto(u: Record<string, any>) {
       documents: u.notificationPrefs?.documents ?? true,
       inspection: u.notificationPrefs?.inspection ?? true,
       garage: u.notificationPrefs?.garage ?? true,
+      garageEvents: u.notificationPrefs?.garage ?? true,
       mileagePrompt: u.notificationPrefs?.mileagePrompt ?? false,
       dailyDigestEnabled: u.notificationPrefs?.dailyDigestEnabled ?? true,
       dailyDigestHour: u.notificationPrefs?.dailyDigestHour ?? 9,

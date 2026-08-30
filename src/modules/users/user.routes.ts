@@ -31,17 +31,25 @@ const PasswordBody = z.object({
     .regex(/[0-9]/, 'Ajoutez au moins un chiffre.'),
 });
 
-const NotificationPrefsBody = z.object({
-  maintenance: z.boolean().optional(),
-  checks: z.boolean().optional(),
-  documents: z.boolean().optional(),
-  inspection: z.boolean().optional(),
-  garage: z.boolean().optional(),
-  mileagePrompt: z.boolean().optional(),
-  dailyDigestEnabled: z.boolean().optional(),
-  dailyDigestHour: z.number().int().min(0).max(23).optional(),
-  promotions: z.boolean().optional(),
-});
+const NotificationPrefsBody = z
+  .object({
+    maintenance: z.boolean().optional(),
+    checks: z.boolean().optional(),
+    documents: z.boolean().optional(),
+    inspection: z.boolean().optional(),
+    garage: z.boolean().optional(),
+    garageEvents: z.boolean().optional(),
+    mileagePrompt: z.boolean().optional(),
+    dailyDigestEnabled: z.boolean().optional(),
+    dailyDigestHour: z.number().int().min(0).max(23).optional(),
+    promotions: z.boolean().optional(),
+  })
+  .transform(({ garage, garageEvents, ...rest }) => ({
+    ...rest,
+    ...(garage !== undefined || garageEvents !== undefined
+      ? { garage: garage ?? garageEvents }
+      : {}),
+  }));
 
 const PreferencesBody = z.object({
   language: z.string().max(5).optional(),

@@ -16,6 +16,7 @@ function createLogger() {
         'req.body.code',
         'req.body.token',
         'req.body.refreshToken',
+        'req.body.idToken',
         'req.body.email',
         'req.body.phone',
         '*.passwordHash',
