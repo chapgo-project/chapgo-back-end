@@ -68,14 +68,10 @@ envVarGroups:
       - key: SMS_API_KEY
         sync: false
       - key: EMAIL_PROVIDER
-        value: gmail
+        value: brevo
       - key: EMAIL_API_KEY
         sync: false
       - key: EMAIL_FROM
-        sync: false
-      - key: GMAIL_USER
-        sync: false
-      - key: GMAIL_APP_PASSWORD
         sync: false
       - key: SENTRY_DSN
         sync: false
