@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
-    "start": "node dist/server.js",
+    "start": "node dist/src/server.js",
     "jobs:dev": "tsx src/jobs/runner.ts",
     "jobs:start": "node dist/jobs/runner.js",
     "typecheck": "tsc --noEmit",
