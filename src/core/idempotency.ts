@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
-import mongoose from 'mongoose';
+import mongoose, { type InferSchemaType } from 'mongoose';
 import { logger } from './logger.js';
 
 /**
@@ -23,9 +23,10 @@ const IdempotencySchema = new mongoose.Schema(
   { collection: 'idempotencyKeys' },
 );
 
+export type IdempotencyKey = InferSchemaType<typeof IdempotencySchema>;
 export const IdempotencyModel =
-  mongoose.models.IdempotencyKey ??
-  mongoose.model('IdempotencyKey', IdempotencySchema);
+  (mongoose.models.IdempotencyKey as mongoose.Model<IdempotencyKey> | undefined) ??
+  mongoose.model<IdempotencyKey>('IdempotencyKey', IdempotencySchema);
 
 export function idempotent(req: Request, res: Response, next: NextFunction) {
   const key = req.header('Idempotency-Key');

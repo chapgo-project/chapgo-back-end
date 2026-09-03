@@ -34,4 +34,5 @@ DocumentSchema.index({ expiresAt: 1 }, { sparse: true });
 
 export type VehicleDocument = InferSchemaType<typeof DocumentSchema>;
 export const DocumentModel =
-  mongoose.models.VehicleDocument ?? mongoose.model('VehicleDocument', DocumentSchema);
+  (mongoose.models.VehicleDocument as mongoose.Model<VehicleDocument> | undefined) ??
+  mongoose.model<VehicleDocument>('VehicleDocument', DocumentSchema);

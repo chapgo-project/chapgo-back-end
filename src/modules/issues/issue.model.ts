@@ -55,4 +55,5 @@ IssueSchema.index({ vehicleId: 1, reportedAt: -1 });
 
 export type VehicleIssue = InferSchemaType<typeof IssueSchema>;
 export const IssueModel =
-  mongoose.models.VehicleIssue ?? mongoose.model('VehicleIssue', IssueSchema);
+  (mongoose.models.VehicleIssue as mongoose.Model<VehicleIssue> | undefined) ??
+  mongoose.model<VehicleIssue>('VehicleIssue', IssueSchema);

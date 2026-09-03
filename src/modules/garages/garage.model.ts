@@ -52,4 +52,5 @@ GarageSchema.index({ location: '2dsphere' });
 GarageSchema.index({ verificationStatus: 1, commune: 1 });
 
 export type Garage = InferSchemaType<typeof GarageSchema>;
-export const GarageModel = mongoose.models.Garage ?? mongoose.model('Garage', GarageSchema);
+export const GarageModel =
+  (mongoose.models.Garage as mongoose.Model<Garage> | undefined) ?? mongoose.model<Garage>('Garage', GarageSchema);

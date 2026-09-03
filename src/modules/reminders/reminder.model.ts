@@ -55,4 +55,5 @@ ReminderSchema.index({ vehicleId: 1, category: 1 });
 
 export type Reminder = InferSchemaType<typeof ReminderSchema>;
 export const ReminderModel =
-  mongoose.models.Reminder ?? mongoose.model('Reminder', ReminderSchema);
+  (mongoose.models.Reminder as mongoose.Model<Reminder> | undefined) ??
+  mongoose.model<Reminder>('Reminder', ReminderSchema);

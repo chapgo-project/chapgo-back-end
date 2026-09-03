@@ -33,7 +33,8 @@ const SubscriptionSchema = new Schema(
 
 export type Subscription = InferSchemaType<typeof SubscriptionSchema>;
 export const SubscriptionModel =
-  mongoose.models.Subscription ?? mongoose.model('Subscription', SubscriptionSchema);
+  (mongoose.models.Subscription as mongoose.Model<Subscription> | undefined) ??
+  mongoose.model<Subscription>('Subscription', SubscriptionSchema);
 
 /**
  * Regional pricing grid.
@@ -57,5 +58,7 @@ const PricingPlanSchema = new Schema(
 
 PricingPlanSchema.index({ region: 1, plan: 1, validFrom: -1 });
 
+export type PricingPlan = InferSchemaType<typeof PricingPlanSchema>;
 export const PricingPlanModel =
-  mongoose.models.PricingPlan ?? mongoose.model('PricingPlan', PricingPlanSchema);
+  (mongoose.models.PricingPlan as mongoose.Model<PricingPlan> | undefined) ??
+  mongoose.model<PricingPlan>('PricingPlan', PricingPlanSchema);

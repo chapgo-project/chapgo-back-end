@@ -45,5 +45,5 @@ AccessSchema.index({ expiresAt: 1 }, { sparse: true });
 
 export type GarageVehicleAccess = InferSchemaType<typeof AccessSchema>;
 export const AccessModel =
-  mongoose.models.GarageVehicleAccess ??
-  mongoose.model('GarageVehicleAccess', AccessSchema);
+  (mongoose.models.GarageVehicleAccess as mongoose.Model<GarageVehicleAccess> | undefined) ??
+  mongoose.model<GarageVehicleAccess>('GarageVehicleAccess', AccessSchema);

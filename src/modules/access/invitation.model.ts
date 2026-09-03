@@ -31,8 +31,10 @@ const InvitationSchema = new Schema(
 InvitationSchema.index({ createdByGarageId: 1 });
 InvitationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
+export type Invitation = InferSchemaType<typeof InvitationSchema>;
 export const InvitationModel =
-  mongoose.models.InvitationCode ?? mongoose.model('InvitationCode', InvitationSchema);
+  (mongoose.models.InvitationCode as mongoose.Model<Invitation> | undefined) ??
+  mongoose.model<Invitation>('InvitationCode', InvitationSchema);
 
 /** Ownership transfer between two ChapGo users. */
 const TransferSchema = new Schema(
@@ -61,5 +63,7 @@ const TransferSchema = new Schema(
 TransferSchema.index({ vehicleId: 1, status: 1 });
 TransferSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
+export type Transfer = InferSchemaType<typeof TransferSchema>;
 export const TransferModel =
-  mongoose.models.Transfer ?? mongoose.model('Transfer', TransferSchema);
+  (mongoose.models.Transfer as mongoose.Model<Transfer> | undefined) ??
+  mongoose.model<Transfer>('Transfer', TransferSchema);

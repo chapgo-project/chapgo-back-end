@@ -47,4 +47,5 @@ MileageSchema.index({ maintenanceEventId: 1 }, { sparse: true });
 
 export type MileageEntry = InferSchemaType<typeof MileageSchema>;
 export const MileageModel =
-  mongoose.models.MileageEntry ?? mongoose.model('MileageEntry', MileageSchema);
+  (mongoose.models.MileageEntry as mongoose.Model<MileageEntry> | undefined) ??
+  mongoose.model<MileageEntry>('MileageEntry', MileageSchema);
