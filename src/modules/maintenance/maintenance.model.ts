@@ -180,4 +180,5 @@ MaintenanceSchema.methods.isEditableBy = function (
 
 export type MaintenanceEvent = InferSchemaType<typeof MaintenanceSchema>;
 export const MaintenanceModel =
-  mongoose.models.MaintenanceEvent ?? mongoose.model('MaintenanceEvent', MaintenanceSchema);
+  (mongoose.models.MaintenanceEvent as mongoose.Model<MaintenanceEvent> | undefined) ??
+  mongoose.model<MaintenanceEvent>('MaintenanceEvent', MaintenanceSchema);

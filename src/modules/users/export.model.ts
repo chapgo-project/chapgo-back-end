@@ -23,4 +23,5 @@ DataExportSchema.index({ userId: 1, createdAt: -1 });
 
 export type DataExport = InferSchemaType<typeof DataExportSchema>;
 export const DataExportModel =
-  mongoose.models.DataExport ?? mongoose.model('DataExport', DataExportSchema);
+  (mongoose.models.DataExport as mongoose.Model<DataExport> | undefined) ??
+  mongoose.model<DataExport>('DataExport', DataExportSchema);

@@ -161,11 +161,12 @@ vehicleRouter.post(
     });
 
     const vehicle = await VehicleModel.findById(scope.vehicleId).lean();
+    if (!vehicle) throw new Error('Vehicle was not found after adding mileage.');
     return ok(
       res,
       {
         entry: { id: String(entry._id), value: entry.value, recordedAt: entry.recordedAt },
-        vehicle: toVehicleDto(vehicle!, scope),
+        vehicle: toVehicleDto(vehicle, scope),
       },
       201,
     );

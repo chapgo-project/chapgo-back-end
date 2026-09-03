@@ -83,4 +83,6 @@ VehicleSchema.pre('validate', function (next) {
 });
 
 export type Vehicle = InferSchemaType<typeof VehicleSchema>;
-export const VehicleModel = mongoose.models.Vehicle ?? mongoose.model('Vehicle', VehicleSchema);
+export const VehicleModel =
+  (mongoose.models.Vehicle as mongoose.Model<Vehicle> | undefined) ??
+  mongoose.model<Vehicle>('Vehicle', VehicleSchema);

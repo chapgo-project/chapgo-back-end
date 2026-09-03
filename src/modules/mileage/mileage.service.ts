@@ -91,7 +91,7 @@ export async function addMileage(
     });
   }
 
-  const [entry] = await MileageModel.create(
+  const createdEntries = await MileageModel.create(
     [
       {
         vehicleId: scope.vehicleId,
@@ -109,6 +109,8 @@ export async function addMileage(
     ],
     session ? { session } : {},
   );
+  const entry = createdEntries[0];
+  if (!entry) throw new Error('Mileage entry creation returned no document.');
 
   // Denormalised onto the vehicle: every dashboard read needs it. Written
   // only here, never by a controller.
@@ -146,7 +148,7 @@ export async function correctMileage(
   const original = await MileageModel.findOne({ _id: entryId, vehicleId: scope.vehicleId });
   if (!original) throw err.notFound('Relevé introuvable.');
 
-  const [correction] = await MileageModel.create([
+  const createdCorrections = await MileageModel.create([
     {
       vehicleId: scope.vehicleId,
       ownershipId: scope.ownershipId,
@@ -160,6 +162,8 @@ export async function correctMileage(
       correctsEntryId: original._id,
     },
   ]);
+  const correction = createdCorrections[0];
+  if (!correction) throw new Error('Mileage correction creation returned no document.');
 
   const reference = await referenceReading(scope.vehicleId);
   if (reference) {

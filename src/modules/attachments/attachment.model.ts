@@ -43,4 +43,5 @@ AttachmentSchema.index({ status: 1, createdAt: 1 });
 
 export type Attachment = InferSchemaType<typeof AttachmentSchema>;
 export const AttachmentModel =
-  mongoose.models.Attachment ?? mongoose.model('Attachment', AttachmentSchema);
+  (mongoose.models.Attachment as mongoose.Model<Attachment> | undefined) ??
+  mongoose.model<Attachment>('Attachment', AttachmentSchema);

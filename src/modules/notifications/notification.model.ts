@@ -31,7 +31,8 @@ NotificationSchema.index({ userId: 1, critical: 1, createdAt: -1 });
 
 export type Notification = InferSchemaType<typeof NotificationSchema>;
 export const NotificationModel =
-  mongoose.models.Notification ?? mongoose.model('Notification', NotificationSchema);
+  (mongoose.models.Notification as mongoose.Model<Notification> | undefined) ??
+  mongoose.model<Notification>('Notification', NotificationSchema);
 
 /** Push registration. Prepared now, delivery wired later. */
 const DeviceTokenSchema = new Schema(
@@ -46,5 +47,7 @@ const DeviceTokenSchema = new Schema(
 
 DeviceTokenSchema.index({ userId: 1 });
 
+export type DeviceToken = InferSchemaType<typeof DeviceTokenSchema>;
 export const DeviceTokenModel =
-  mongoose.models.DeviceToken ?? mongoose.model('DeviceToken', DeviceTokenSchema);
+  (mongoose.models.DeviceToken as mongoose.Model<DeviceToken> | undefined) ??
+  mongoose.model<DeviceToken>('DeviceToken', DeviceTokenSchema);

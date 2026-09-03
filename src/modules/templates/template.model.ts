@@ -61,5 +61,5 @@ TemplateSchema.index({ garageId: 1, family: 1 });
 
 export type InterventionTemplate = InferSchemaType<typeof TemplateSchema>;
 export const TemplateModel =
-  mongoose.models.InterventionTemplate ??
-  mongoose.model('InterventionTemplate', TemplateSchema);
+  (mongoose.models.InterventionTemplate as mongoose.Model<InterventionTemplate> | undefined) ??
+  mongoose.model<InterventionTemplate>('InterventionTemplate', TemplateSchema);

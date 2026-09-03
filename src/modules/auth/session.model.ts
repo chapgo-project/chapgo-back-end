@@ -29,7 +29,8 @@ RefreshTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 export type RefreshToken = InferSchemaType<typeof RefreshTokenSchema>;
 export const RefreshTokenModel =
-  mongoose.models.RefreshToken ?? mongoose.model('RefreshToken', RefreshTokenSchema);
+  (mongoose.models.RefreshToken as mongoose.Model<RefreshToken> | undefined) ??
+  mongoose.model<RefreshToken>('RefreshToken', RefreshTokenSchema);
 
 /**
  * OTP and one-time link challenges.
@@ -64,4 +65,5 @@ OtpChallengeSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 export type OtpChallenge = InferSchemaType<typeof OtpChallengeSchema>;
 export const OtpChallengeModel =
-  mongoose.models.OtpChallenge ?? mongoose.model('OtpChallenge', OtpChallengeSchema);
+  (mongoose.models.OtpChallenge as mongoose.Model<OtpChallenge> | undefined) ??
+  mongoose.model<OtpChallenge>('OtpChallenge', OtpChallengeSchema);

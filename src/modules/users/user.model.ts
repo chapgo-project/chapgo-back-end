@@ -91,4 +91,5 @@ UserSchema.index(
 UserSchema.index({ garageId: 1 });
 
 export type User = InferSchemaType<typeof UserSchema>;
-export const UserModel = mongoose.models.User ?? mongoose.model('User', UserSchema);
+export const UserModel =
+  (mongoose.models.User as mongoose.Model<User> | undefined) ?? mongoose.model<User>('User', UserSchema);

@@ -38,4 +38,5 @@ OwnershipSchema.index(
 
 export type Ownership = InferSchemaType<typeof OwnershipSchema>;
 export const OwnershipModel =
-  mongoose.models.VehicleOwnership ?? mongoose.model('VehicleOwnership', OwnershipSchema);
+  (mongoose.models.VehicleOwnership as mongoose.Model<Ownership> | undefined) ??
+  mongoose.model<Ownership>('VehicleOwnership', OwnershipSchema);

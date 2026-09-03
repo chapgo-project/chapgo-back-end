@@ -1,4 +1,4 @@
-import mongoose, { Schema } from 'mongoose';
+import mongoose, { Schema, type InferSchemaType } from 'mongoose';
 
 /**
  * Append-only trail of every garage action against customer data.
@@ -29,7 +29,10 @@ AuditSchema.index({ garageId: 1, at: -1 });
 AuditSchema.index({ vehicleId: 1, at: -1 });
 AuditSchema.index({ actorId: 1, at: -1 });
 
-export const AuditModel = mongoose.models.AuditLog ?? mongoose.model('AuditLog', AuditSchema);
+export type AuditLog = InferSchemaType<typeof AuditSchema>;
+export const AuditModel =
+  (mongoose.models.AuditLog as mongoose.Model<AuditLog> | undefined) ??
+  mongoose.model<AuditLog>('AuditLog', AuditSchema);
 
 /** Fire-and-forget: an audit failure must never fail the request. */
 export function audit(entry: {

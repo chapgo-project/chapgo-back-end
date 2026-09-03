@@ -112,7 +112,7 @@ function idOf(value: unknown): string {
  */
 export function snapshotFromCollections(input: {
   exportedAt?: Date;
-  account: { firstName?: string; lastName?: string; email?: string | null };
+  account: { firstName?: string | null; lastName?: string | null; email?: string | null };
   vehicles: Array<Record<string, unknown>>;
   mileage: Array<Record<string, unknown>>;
   maintenance: Array<Record<string, unknown>>;
@@ -244,7 +244,7 @@ function wrapLine(text: string, width = 92): string[] {
   const words = text.split(/\s+/).filter(Boolean);
   if (words.length === 0) return [''];
   const lines: string[] = [];
-  let current = words[0];
+  let current = words[0]!;
   for (const word of words.slice(1)) {
     if (`${current} ${word}`.length > width) {
       lines.push(current);
