@@ -39,11 +39,6 @@ const EnvSchema = z.object({
   TWILIO_AUTH_TOKEN: z.string().default(''),
   TWILIO_FROM: z.string().default(''),
 
-  EMAIL_PROVIDER: z.enum(['console', 'brevo', 'gmail']).default('console'),
-  EMAIL_API_KEY: z.string().default(''),
-  EMAIL_FROM: z.string().default('no-reply@chapgo.ci'),
-  GMAIL_USER: z.string().email().or(z.literal('')).default(''),
-  GMAIL_APP_PASSWORD: z.string().default(''),
   APP_PUBLIC_URL: z.string().default('https://app.chapgo.ci'),
 
   /** Comma-separated OAuth client IDs (iOS, Android, Web). */

@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import type { Request } from 'express';
 import { err, ErrorCode } from '../../core/errors.js';
-import { generateLinkToken, messenger } from '../../core/messaging.js';
+import { emailMessage, generateLinkToken, type EmailMessage } from '../../core/messaging.js';
 import { verifyPassword } from '../../core/password.js';
 import { revokeAllSessions } from '../auth/auth.service.js';
 import { AccessModel } from '../access/access.model.js';
@@ -93,18 +93,15 @@ export async function requestLogbookExport(userId: string, req: Request) {
   const pdfDownloadUrl = `${base}?format=pdf`;
   const user = await UserModel.findById(userId).select('email').lean();
   let emailed = false;
+  let email: EmailMessage | null = null;
 
   if (user?.email) {
-    try {
-      await messenger.sendEmail(
-        user.email,
-        'Votre export ChapGo',
-        `Votre export de carnets est prêt (CSV pour Excel, PDF à partager). Les liens expirent dans 24 heures :\n\nCSV : ${csvDownloadUrl}\nPDF : ${pdfDownloadUrl}`,
-      );
-      emailed = true;
-    } catch {
-      emailed = false;
-    }
+    email = emailMessage(
+      user.email,
+      'Votre export ChapGo',
+      `Votre export de carnets est prêt (CSV pour Excel, PDF à partager). Les liens expirent dans 24 heures :\n\nCSV : ${csvDownloadUrl}\nPDF : ${pdfDownloadUrl}`,
+    );
+    emailed = true;
   }
 
   return {
@@ -116,6 +113,7 @@ export async function requestLogbookExport(userId: string, req: Request) {
     fileName: csvFileName,
     expiresAt: expiresAt.toISOString(),
     emailed,
+    email,
   };
 }
 

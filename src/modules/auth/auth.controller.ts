@@ -27,9 +27,12 @@ export const logout = handler(async (req: Request, res: Response) => {
 });
 
 export const forgotPassword = handler(async (req: Request, res: Response) => {
-  await svc.forgotPassword(req.body.email);
+  const email = await svc.forgotPassword(req.body.email);
   // Deliberately identical whether or not the account exists.
-  return ok(res, { sent: true });
+  return ok(res, {
+    sent: true,
+    ...(req.header('X-Email-Delivery') === 'app' ? { email } : {}),
+  });
 });
 
 export const resetPassword = handler(async (req: Request, res: Response) => {
@@ -76,8 +79,11 @@ export const resendVerification = handler(async (req: Request, res: Response) =>
     await user.save();
   }
 
-  await svc.sendEmailVerification(String(user._id), target);
-  return ok(res, { sent: true });
+  const email = await svc.sendEmailVerification(String(user._id), target);
+  return ok(res, {
+    sent: true,
+    ...(req.header('X-Email-Delivery') === 'app' ? { email } : {}),
+  });
 });
 
 export const requestPhoneCode = handler(async (req: Request, res: Response) => {

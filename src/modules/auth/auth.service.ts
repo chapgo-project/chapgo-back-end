@@ -7,7 +7,7 @@ import {
   generateOtpCode, generateRefreshToken, hashToken, issueAccessToken, type Role,
 } from '../../core/tokens.js';
 import { logger } from '../../core/logger.js';
-import { generateLinkToken, messenger, appUrl } from '../../core/messaging.js';
+import { emailMessage, generateLinkToken, messenger, appUrl, type EmailMessage } from '../../core/messaging.js';
 import { verifyGoogleIdToken } from '../../core/google.js';
 import { UserModel } from '../users/user.model.js';
 import { applyConfirmedEmail } from '../users/email-change.service.js';
@@ -101,7 +101,7 @@ export async function register(input: RegisterInput) {
     passwordChangedAt: new Date(),
   });
 
-  await sendEmailVerification(String(user._id), input.email);
+  const email = await sendEmailVerification(String(user._id), input.email);
 
   // No session before verification: the app shows screen O16.
   return {
@@ -109,10 +109,11 @@ export async function register(input: RegisterInput) {
     verificationRequired: true,
     verificationChannel: 'email' as const,
     expiresAt: minutes(60),
+    email,
   };
 }
 
-export async function sendEmailVerification(userId: string, email: string): Promise<void> {
+export async function sendEmailVerification(userId: string, email: string): Promise<EmailMessage> {
   const { token, hash } = generateLinkToken();
   await OtpChallengeModel.create({
     identifier: email,
@@ -123,11 +124,13 @@ export async function sendEmailVerification(userId: string, email: string): Prom
     userId,
     expiresAt: minutes(60),
   });
-  await messenger.sendEmail(
+  const message = emailMessage(
     email,
     'Confirmez votre adresse ChapGo',
     `Confirmez votre adresse : ${appUrl(`/auth/verify-email?token=${token}`)}`,
   );
+  if (process.env.NODE_ENV === 'test') await messenger.sendEmail(message.to, message.subject, message.body);
+  return message;
 }
 
 export async function verifyEmail(token: string): Promise<SessionPair & { emailChanged: boolean }> {
@@ -275,13 +278,13 @@ export async function revokeAllSessions(userId: string): Promise<void> {
 
 /* ───────────────────────── Password recovery ─────────────────────── */
 
-export async function forgotPassword(email: string): Promise<void> {
+export async function forgotPassword(email: string): Promise<EmailMessage | null> {
   const user = await UserModel.findOne({ email, deletedAt: null }).select('_id').lean();
 
   // ALWAYS returns without error, even for an unknown address — otherwise
   // the endpoint confirms which addresses have accounts. The screen copy
   // says so explicitly: « Si un compte existe pour cette adresse… ».
-  if (!user) return;
+  if (!user) return null;
 
   // A new request invalidates unused reset links so only the latest works.
   await OtpChallengeModel.updateMany(
@@ -301,23 +304,20 @@ export async function forgotPassword(email: string): Promise<void> {
   });
 
   const resetUrl = appUrl(`/auth/reset?token=${token}`);
-  try {
-    await messenger.sendEmail(
-      email,
-      'Réinitialisez votre mot de passe ChapGo',
-      [
-        'Vous avez demandé à réinitialiser votre mot de passe ChapGo.',
-        '',
-        'Ouvrez ce lien pour en choisir un nouveau (valable 1 heure) :',
-        resetUrl,
-        '',
-        "Si vous n'êtes pas à l'origine de cette demande, ignorez cet e-mail.",
-      ].join('\n'),
-    );
-  } catch (cause) {
-    // Still 200: failing here would tell an attacker that the address exists.
-    logger.error({ err: cause }, 'password reset email failed');
-  }
+  const message = emailMessage(
+    email,
+    'Réinitialisez votre mot de passe ChapGo',
+    [
+      'Vous avez demandé à réinitialiser votre mot de passe ChapGo.',
+      '',
+      'Ouvrez ce lien pour en choisir un nouveau (valable 1 heure) :',
+      resetUrl,
+      '',
+      "Si vous n'êtes pas à l'origine de cette demande, ignorez cet e-mail.",
+    ].join('\n'),
+  );
+  if (process.env.NODE_ENV === 'test') await messenger.sendEmail(message.to, message.subject, message.body);
+  return message;
 }
 
 export async function resetPassword(token: string, password: string): Promise<void> {
