@@ -157,10 +157,11 @@ userRouter.post(
   authLimiter,
   validateBody(ChangeEmailBody),
   handler(async (req, res) => {
-    return ok(
-      res,
-      await requestEmailChange(actorOf(req).userId, req.body),
-    );
+    const result = await requestEmailChange(actorOf(req).userId, req.body);
+    const { emailMessage, ...user } = result;
+    return ok(res, req.header('X-Email-Delivery') === 'app'
+      ? { user, email: emailMessage }
+      : user);
   }),
 );
 
@@ -168,7 +169,11 @@ userRouter.post(
   '/me/email/resend',
   authLimiter,
   handler(async (req, res) => {
-    return ok(res, await resendEmailChange(actorOf(req).userId));
+    const result = await resendEmailChange(actorOf(req).userId);
+    const { emailMessage, ...user } = result;
+    return ok(res, req.header('X-Email-Delivery') === 'app'
+      ? { user, email: emailMessage }
+      : user);
   }),
 );
 
@@ -321,7 +326,9 @@ userRouter.post(
   exportLimiter,
   handler(async (req, res) => {
     const result = await requestLogbookExport(actorOf(req).userId, req);
-    return ok(res, result);
+    if (req.header('X-Email-Delivery') === 'app') return ok(res, result);
+    const { email, ...legacy } = result;
+    return ok(res, legacy);
   }),
 );
 

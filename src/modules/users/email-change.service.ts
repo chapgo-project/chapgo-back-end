@@ -2,7 +2,7 @@ import { err, ErrorCode } from '../../core/errors.js';
 import { logger } from '../../core/logger.js';
 import { verifyGoogleIdToken } from '../../core/google.js';
 import { verifyPassword } from '../../core/password.js';
-import { generateLinkToken, messenger, appUrl } from '../../core/messaging.js';
+import { emailMessage, generateLinkToken, messenger, appUrl, type EmailMessage } from '../../core/messaging.js';
 import { OtpChallengeModel } from '../auth/session.model.js';
 import { UserModel } from './user.model.js';
 import { toUserDto } from './user.dto.js';
@@ -73,7 +73,7 @@ async function assertEmailChangeProof(
   }
 }
 
-async function sendChangeLink(userId: string, newEmail: string): Promise<void> {
+async function sendChangeLink(userId: string, newEmail: string): Promise<EmailMessage> {
   await OtpChallengeModel.updateMany(
     { userId, purpose: 'email_change', consumedAt: null },
     { consumedAt: new Date() },
@@ -90,11 +90,13 @@ async function sendChangeLink(userId: string, newEmail: string): Promise<void> {
     expiresAt: minutes(60),
   });
 
-  await messenger.sendEmail(
+  const message = emailMessage(
     newEmail,
     'Confirmez votre nouvelle adresse ChapGo',
     `Confirmez votre nouvelle adresse : ${appUrl(`/auth/verify-email?token=${token}`)}`,
   );
+  if (process.env.NODE_ENV === 'test') await messenger.sendEmail(message.to, message.subject, message.body);
+  return message;
 }
 
 export async function requestEmailChange(
@@ -122,8 +124,9 @@ export async function requestEmailChange(
   user.pendingEmail = next;
   await user.save();
 
+  let email: EmailMessage;
   try {
-    await sendChangeLink(userId, next);
+    email = await sendChangeLink(userId, next);
   } catch (cause) {
     logger.error({ err: cause }, 'email change confirmation failed');
     user.pendingEmail = null;
@@ -137,19 +140,21 @@ export async function requestEmailChange(
 
   if (previous) {
     try {
-      await messenger.sendEmail(
-        previous,
-        'Changement d’adresse e-mail ChapGo',
-        'Une demande de changement d’adresse e-mail a été faite sur votre compte ChapGo. '
+      if (process.env.NODE_ENV === 'test') {
+        await messenger.sendEmail(
+          previous,
+          'Changement d’adresse e-mail ChapGo',
+          'Une demande de changement d’adresse e-mail a été faite sur votre compte ChapGo. '
           + 'Votre adresse actuelle reste valable jusqu’à confirmation de la nouvelle. '
           + 'Si ce n’est pas vous, changez votre mot de passe depuis l’application.',
-      );
+        );
+      }
     } catch (cause) {
       logger.error({ err: cause }, 'email change notice to previous address failed');
     }
   }
 
-  return toUserDto(user.toObject());
+  return { ...toUserDto(user.toObject()), emailMessage: email };
 }
 
 export async function resendEmailChange(userId: string) {
@@ -164,8 +169,8 @@ export async function resendEmailChange(userId: string) {
       'email',
     );
   }
-  await sendChangeLink(userId, user.pendingEmail);
-  return toUserDto(user.toObject());
+  const email = await sendChangeLink(userId, user.pendingEmail);
+  return { ...toUserDto(user.toObject()), emailMessage: email };
 }
 
 export async function cancelEmailChange(userId: string) {

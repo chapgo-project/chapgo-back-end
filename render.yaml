@@ -67,11 +67,5 @@ envVarGroups:
         value: console
       - key: SMS_API_KEY
         sync: false
-      - key: EMAIL_PROVIDER
-        value: brevo
-      - key: EMAIL_API_KEY
-        sync: false
-      - key: EMAIL_FROM
-        sync: false
       - key: SENTRY_DSN
         sync: false
