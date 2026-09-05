@@ -56,6 +56,8 @@ export const ResetPasswordBody = z.object({
 
 export const VerifyEmailBody = z.object({ token: z.string().min(10) });
 
+export const EmailVerificationStatusBody = z.object({ email });
+
 export const ResendVerificationBody = z.object({
   /** Present when the user is correcting a typo in their address. */
   email: email.optional(),

@@ -167,6 +167,11 @@ export async function verifyEmail(token: string): Promise<SessionPair & { emailC
   return { ...(await issueSession(user)), emailChanged: false };
 }
 
+export async function emailVerificationStatus(email: string): Promise<{ verified: boolean }> {
+  const user = await UserModel.findOne({ email, deletedAt: null }).select('emailVerifiedAt').lean();
+  return { verified: Boolean(user?.emailVerifiedAt) };
+}
+
 /* ──────────────────────────── Email login ─────────────────────────── */
 
 export async function login(input: LoginInput): Promise<{ session: SessionPair; user: unknown }> {
