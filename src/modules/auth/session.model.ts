@@ -11,6 +11,7 @@ const RefreshTokenSchema = new Schema(
   {
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     tokenHash: { type: String, required: true, unique: true },
+    deviceId: { type: String, default: null },
     deviceLabel: { type: String, default: null },
     platform: { type: String, enum: ['ios', 'android', 'web', 'unknown'], default: 'unknown' },
     lastActiveAt: { type: Date, default: Date.now },
@@ -25,6 +26,7 @@ const RefreshTokenSchema = new Schema(
 
 RefreshTokenSchema.index({ userId: 1 });
 RefreshTokenSchema.index({ familyId: 1 });
+RefreshTokenSchema.index({ userId: 1, deviceId: 1, createdAt: -1 });
 RefreshTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 export type RefreshToken = InferSchemaType<typeof RefreshTokenSchema>;

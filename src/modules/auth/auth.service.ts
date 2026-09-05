@@ -55,6 +55,7 @@ async function issueSession(user: {
     tokenHash: refresh.hash,
     familyId: opts.familyId ?? crypto.randomUUID(),
     rotatedFrom: opts.rotatedFrom ?? null,
+    deviceId: opts.device?.id ?? null,
     deviceLabel: opts.device?.label ?? opts.deviceLabel ?? null,
     platform: opts.device?.platform ?? opts.platform ?? 'unknown',
     lastActiveAt: new Date(),
@@ -166,6 +167,11 @@ export async function verifyEmail(token: string): Promise<SessionPair & { emailC
   return { ...(await issueSession(user)), emailChanged: false };
 }
 
+export async function emailVerificationStatus(email: string): Promise<{ verified: boolean }> {
+  const user = await UserModel.findOne({ email, deletedAt: null }).select('emailVerifiedAt').lean();
+  return { verified: Boolean(user?.emailVerifiedAt) };
+}
+
 /* ──────────────────────────── Email login ─────────────────────────── */
 
 export async function login(input: LoginInput): Promise<{ session: SessionPair; user: unknown }> {
@@ -215,7 +221,20 @@ export async function login(input: LoginInput): Promise<{ session: SessionPair; 
   user.lockedUntil = null;
   await user.save();
 
-  return { session: await issueSession(user, { device: input.device }), user };
+  const previousDeviceSession = input.device?.id
+    ? await RefreshTokenModel.findOne({ userId: user._id, deviceId: input.device.id })
+      .sort({ createdAt: -1 })
+      .select('familyId')
+      .lean()
+    : null;
+
+  return {
+    session: await issueSession(user, {
+      device: input.device,
+      familyId: previousDeviceSession?.familyId,
+    }),
+    user,
+  };
 }
 
 /* ───────────────────────── Refresh & logout ──────────────────────── */

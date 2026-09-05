@@ -35,6 +35,9 @@ const identifier = (req: any): string =>
 /** Login, register, password reset. */
 export const authLimiter = limiter({ windowMs: 15 * 60_000, max: 5, keyExtra: identifier });
 
+/** Verification status polling from the pending signup screen. */
+export const emailStatusLimiter = limiter({ windowMs: 60_000, max: 20, keyExtra: identifier });
+
 /** OTP request — the expensive one: every call may send a paid SMS. */
 export const otpRequestLimiter = limiter({ windowMs: 15 * 60_000, max: 4, keyExtra: identifier });
 

@@ -1,7 +1,12 @@
 import { Router } from 'express';
 import { validateBody } from '../../core/validate.js';
 import { optionalAuth } from '../../core/authMiddleware.js';
-import { authLimiter, otpRequestLimiter, otpVerifyLimiter } from '../../core/rateLimit.js';
+import {
+  authLimiter,
+  emailStatusLimiter,
+  otpRequestLimiter,
+  otpVerifyLimiter,
+} from '../../core/rateLimit.js';
 import * as ctrl from './auth.controller.js';
 import * as S from './auth.schema.js';
 
@@ -34,6 +39,12 @@ authRouter.post(
 );
 
 authRouter.post('/verify-email', validateBody(S.VerifyEmailBody), ctrl.verifyEmail);
+authRouter.post(
+  '/verify-email/status',
+  emailStatusLimiter,
+  validateBody(S.EmailVerificationStatusBody),
+  ctrl.emailVerificationStatus,
+);
 authRouter.post(
   '/resend-verification',
   optionalAuth,

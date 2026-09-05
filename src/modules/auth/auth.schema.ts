@@ -29,6 +29,7 @@ export const RegisterBody = z.object({
 });
 
 export const DeviceInfo = z.object({
+  id: z.string().trim().min(1).max(128).optional(),
   label: z.string().trim().min(1).max(80).optional(),
   platform: z.enum(['ios', 'android', 'web', 'unknown']).optional(),
 });
@@ -54,6 +55,8 @@ export const ResetPasswordBody = z.object({
 });
 
 export const VerifyEmailBody = z.object({ token: z.string().min(10) });
+
+export const EmailVerificationStatusBody = z.object({ email });
 
 export const ResendVerificationBody = z.object({
   /** Present when the user is correcting a typo in their address. */

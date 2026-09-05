@@ -45,6 +45,11 @@ export const verifyEmail = handler(async (req: Request, res: Response) => {
   return ok(res, session);
 });
 
+export const emailVerificationStatus = handler(async (req: Request, res: Response) => {
+  const status = await svc.emailVerificationStatus(req.body.email);
+  return ok(res, status);
+});
+
 export const resendVerification = handler(async (req: Request, res: Response) => {
   const actor = (req as { actor?: { userId: string } }).actor;
   const requested = req.body.email as string | undefined;
