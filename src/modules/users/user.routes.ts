@@ -58,7 +58,7 @@ const ConfirmAvatarBody = z.object({
 });
 
 const PasswordBody = z.object({
-  currentPassword: z.string().min(1),
+  currentPassword: z.string().min(1).optional(),
   newPassword: z
     .string()
     .min(8, '8 caractères minimum.')
@@ -268,16 +268,19 @@ userRouter.post(
   validateBody(PasswordBody),
   handler(async (req, res) => {
     const user = await UserModel.findById(actorOf(req).userId);
-    if (!user?.passwordHash) throw err.unauthenticated();
+    if (!user) throw err.unauthenticated();
 
-    const valid = await verifyPassword(user.passwordHash, req.body.currentPassword);
-    if (!valid) {
-      throw err.custom(
-        401,
-        ErrorCode.INVALID_CREDENTIALS,
-        'Mot de passe actuel incorrect.',
-        { field: 'currentPassword' },
-      );
+    if (user.passwordHash) {
+      const valid = req.body.currentPassword &&
+        await verifyPassword(user.passwordHash, req.body.currentPassword);
+      if (!valid) {
+        throw err.custom(
+          401,
+          ErrorCode.INVALID_CREDENTIALS,
+          'Mot de passe actuel incorrect.',
+          { field: 'currentPassword' },
+        );
+      }
     }
 
     user.passwordHash = await hashPassword(req.body.newPassword);

@@ -29,6 +29,7 @@ export const RegisterBody = z.object({
 });
 
 export const DeviceInfo = z.object({
+  id: z.string().trim().min(1).max(128).optional(),
   label: z.string().trim().min(1).max(80).optional(),
   platform: z.enum(['ios', 'android', 'web', 'unknown']).optional(),
 });

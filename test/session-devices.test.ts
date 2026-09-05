@@ -7,7 +7,11 @@ import { RefreshTokenModel } from '../src/modules/auth/session.model.js';
 const app = createApp();
 const api = () => request(app);
 
-async function login(email: string, device: { label: string; platform: 'ios' | 'android' }) {
+async function login(email: string, device: {
+  id?: string;
+  label: string;
+  platform: 'ios' | 'android';
+}) {
   const res = await api().post('/api/v1/auth/login').send({
     email,
     password: 'motdepasse1',
@@ -90,6 +94,27 @@ describe('connected devices / sessions', () => {
     expect(await RefreshTokenModel.countDocuments({ userId: user._id })).toBe(2);
   });
 
+  it('updates the existing device session after logout and a later login', async () => {
+    const user = await makeOwner();
+    const device = { id: 'iphone-15-device-id', label: 'iPhone 15', platform: 'ios' as const };
+    const first = await login(user.email, device);
+
+    const logout = await api().post('/api/v1/auth/logout').send({
+      refreshToken: first.refreshToken,
+    });
+    expect(logout.status).toBe(200);
+
+    const second = await login(user.email, device);
+    const listed = await api()
+      .get('/api/v1/users/me/sessions')
+      .set('Authorization', `Bearer ${second.accessToken}`)
+      .set('X-ChapGo-Refresh', second.refreshToken);
+
+    expect(listed.status).toBe(200);
+    expect(listed.body.data).toHaveLength(1);
+    expect(listed.body.data[0].deviceLabel).toBe('iPhone 15');
+  });
+
   it('stores passwordChangedAt and biometric preference', async () => {
     const user = await makeOwner({ passwordChangedAt: new Date('2025-03-01T00:00:00.000Z') });
     const me = await api().get('/api/v1/users/me').set('Authorization', bearer(user));
@@ -103,5 +128,21 @@ describe('connected devices / sessions', () => {
       .send({ biometricEnabled: true });
     expect(prefs.status).toBe(200);
     expect(prefs.body.data.biometricEnabled).toBe(true);
+  });
+
+  it('lets a Google-only account set its first email password', async () => {
+    const user = await makeOwner({ passwordHash: null, googleSubject: 'google-subject' });
+
+    const setPassword = await api()
+      .post('/api/v1/users/me/password')
+      .set('Authorization', bearer(user))
+      .send({ newPassword: 'nouveau123' });
+    expect(setPassword.status).toBe(200);
+
+    const loginWithPassword = await api().post('/api/v1/auth/login').send({
+      email: user.email,
+      password: 'nouveau123',
+    });
+    expect(loginWithPassword.status).toBe(200);
   });
 });
